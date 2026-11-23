@@ -113,5 +113,13 @@ python .\plot_all.py
 python .\plot_all.py --dataset all --formats png pdf --out-dir .\figures_paper --labels mnist_S1_samebasis=S1 mnist_G1_sharegates=G1 mnist_G2_sharegates_sharefinal=G2 fashion_S1_samebasis=S1 fashion_G1_sharegates=G1
 
 
+7. SMOKE TEST (kiểm code chạy được, vài phút; KHÔNG phải run thật)
+----------------------------------------------------------------
+powershell -ExecutionPolicy Bypass -File .\smoke_test.ps1
+# Mỗi bước: 2 epoch trên 256 ảnh train + 256 ảnh validation (--limit-samples 256). Gồm test_model, S1 MNIST,
+# S1 Fashion, G2 (share-gates + share-final), CNN MNIST/Fashion, evaluate_test CNN, plot_all. Ghi vào
+# runs\_smoke, classical_cnn\runs\_smoke, log ở logs\smoke_*.txt. Bỏ test_model: thêm -SkipTestModel.
+
+
 Đầu ra mỗi run (trong --out-dir): history.csv, config.json, summary.json, convergence.png, train_log.txt,
 model_best_val_acc.pt, model_best_val_loss.pt, model_last.pt. runs\ và logs\ không đưa lên git.

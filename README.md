@@ -23,6 +23,7 @@ evaluate_test.py    test chính thức (chỉ một lần cho bản chốt)
 analyze_routing.py  phân tích router trên validation
 test_model.py       kiểm tra số tham số, so mạch với mô phỏng ma trận đầy đủ
 plot_all.py         vẽ mọi biểu đồ so sánh (PNG + PDF vector) -> xem plot.md
+smoke_test.ps1      smoke test vài phút (--limit-samples) trước khi train thật
 command.txt         lệnh cài đặt và toàn bộ lệnh chạy
 requirements.txt    torch CUDA 12.6
 qcnn/

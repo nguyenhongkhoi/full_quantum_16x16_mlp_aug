@@ -53,6 +53,9 @@ def make_loaders(args: argparse.Namespace, device: torch.device):
     split_order = torch.randperm(60_000, generator=torch.Generator().manual_seed(args.split_seed)).tolist()
     validation_indices = split_order[:10_000]
     train_indices = split_order[10_000:]
+    limit = getattr(args, "limit_samples", 0) or 0
+    if limit > 0:  # smoke test: chỉ dùng `limit` ảnh đầu của train và của validation
+        train_indices, validation_indices = train_indices[:limit], validation_indices[:limit]
 
     if args.aug_degrees > 0 or args.aug_translate > 0:
         train_transform = transforms.Compose([
@@ -151,6 +154,8 @@ def main() -> None:
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--split-seed", type=int, default=20260911)
+    parser.add_argument("--limit-samples", type=int, default=0,
+                        help="Smoke test: chỉ dùng N ảnh train và N ảnh validation (0 = đủ 50.000 / 10.000)")
     # Augmentation
     parser.add_argument("--aug-degrees", type=float, default=5.0)
     parser.add_argument("--aug-translate", type=float, default=0.05)

@@ -38,6 +38,9 @@ def make_loaders(args: argparse.Namespace, device: torch.device):
     ).tolist()
     validation_indices = split_order[:10_000]
     train_indices = split_order[10_000:]
+    limit = getattr(args, "limit_samples", 0) or 0
+    if limit > 0:  # smoke test: chỉ dùng `limit` ảnh đầu của train và của validation
+        train_indices, validation_indices = train_indices[:limit], validation_indices[:limit]
 
     has_aug = args.aug_degrees > 0 or args.aug_translate > 0
     if has_aug:
