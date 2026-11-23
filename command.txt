@@ -1,0 +1,18 @@
+# Run from the project root on the training machine (the folder that contains mnist_data).
+# Same protocol as s9_meas. Each run stops after epoch 25 and prints "Phase 2 result". Send me that line.
+# Re-running the same command resumes the run. Removing --stop-after-phase2 continues it to phase 3.
+
+# 0. Check first: no MNIST needed. Send me the whole output.
+python .\full_quantum_16x16_quantum_audit\test_model.py --device cuda:0
+
+# 1. Same head on raw pixels.
+python .\full_quantum_16x16_quantum_audit\run_audit.py --preset c0_pixel --init random --stop-after-phase2 --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_quantum_audit\runs\c0_pixel
+
+# 2. Encoding only: cos, sin and neighbour products, with no gates.
+python .\full_quantum_16x16_quantum_audit\run_audit.py --preset c1_encoding --init random --stop-after-phase2 --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_quantum_audit\runs\c1_encoding
+
+# 3. The same circuit with product gates, so no entanglement. Compare with s9_meas_random, not s9_meas.
+python .\full_quantum_16x16_quantum_audit\run_audit.py --preset c2_product --init random --stop-after-phase2 --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_quantum_audit\runs\c2_product
+
+# 4. A small classical layer with almost the same total parameters as s9_meas.
+python .\full_quantum_16x16_quantum_audit\run_audit.py --preset c4_local_mlp --init random --stop-after-phase2 --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_quantum_audit\runs\c4_local_mlp
