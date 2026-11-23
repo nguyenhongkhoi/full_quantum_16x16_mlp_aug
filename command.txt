@@ -1,0 +1,58 @@
+# ==============================================================================
+# LEVEL32 + ENCODER QUANTUM qconv4x3, HEAD TUYẾN TÍNH (linhead), MNIST TĨNH (2026-11-15)
+# Chạy từ trong folder full_quantum_16x16_level32_qconv_linhead trên máy train (venv có CUDA).
+# Chép từ full_quantum_16x16_level32_qconv (folder đó không bị sửa). Encoder qconv4x3 và mạch level32 giữ nguyên;
+# chỉ đổi head:
+#   --head linear3 (mặc định ở folder này): mỗi cây một Linear(372, 10), logit = trung bình 3 cây. Không projection,
+#       không LayerNorm, không GELU, không dropout, không MLP gộp. Head 11.190; tổng 16.506; quantum 31,2%.
+#   --head linear-shared: một Linear(372, 10) dùng chung 3 cây. Head 3.730; tổng 9.046; quantum 56,9%.
+#   --head mlp: head cũ (projection 10 + MLP gộp), giống hệt level32_qconv: tổng 17.264.
+# Cùng điều kiện với run 2c front_qconv4x3_proj10: aug 5 độ / 0,05; batch 64; 50 epoch; lr 1e-3; patience 10;
+# seed 0; split-seed 20260911; 50.000 train / 10.000 val. Dropout 0 (người dùng chạy mọi run dropout 0).
+# --projection và --dropout không có tác dụng với head tuyến tính (vẫn ghi để lệnh đầy đủ).
+# ==============================================================================
+$env:PYTHONIOENCODING = "utf-8"
+
+# 0. Kiểm tra (chạy 1 lần, gửi toàn bộ output). Phải có "ALL TESTS PASSED SUCCESSFULLY!"; cuối là tốc độ
+#    qconv4x3 với 3 kiểu head. Đầu run phải in: Head: linear3 ...; Parameter counts ... Head=11190, Total=16506.
+python .\test_model.py
+
+# L1 (CHÍNH). qconv4x3 + level32 + head linear3: 16.506
+python .\run_level32_front.py --model qcnn --front qconv4x3 --head linear3 --side-level 32 --projection 10 --hidden 16 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\front_qconv4x3_linear3 | Tee-Object -FilePath .\log_front_qconv4x3_linear3.txt
+
+# L2 (TÙY CHỌN). qconv4x3 + level32 + head linear-shared: 9.046 (phần quantum hơn một nửa)
+python .\run_level32_front.py --model qcnn --front qconv4x3 --head linear-shared --side-level 32 --projection 10 --hidden 16 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\front_qconv4x3_linearshared | Tee-Object -FilePath .\log_front_qconv4x3_linearshared.txt
+
+# Gửi: history.csv (hoặc ảnh dòng Best Val Acc / Best Val Loss cuối log) của mỗi run.
+
+# NGƯỠNG CHỐT TRƯỚC (Claude đề xuất 2026-11-15), MAX val, seed 0; so với 2c front_qconv4x3_proj10 (head MLP,
+# 17.264) MAX 99,03 (số giữa run ep 32; nếu run 2c kết thúc với MAX khác thì dùng số cuối):
+#   >= 98,73 (trong 0,30): head MLP không cần; head tuyến tính thay được.
+#   98,03 - 98,73: head MLP đóng góp vừa phải (báo như ablation).
+#   < 98,03: head MLP gánh nhiều.
+# Ghi cả CK và có đạt 99,00 không. L2 so L1 ±0,30: dùng chung Linear có mất gì không.
+# Dự đoán Claude: L1 khoảng 98,5-98,9; L2 khoảng 98,3-98,8.
+# Lưu ý: trung bình logit của 3 Linear về toán bằng một Linear(1116, 10) trên 3 vector đặc trưng nối lại; head
+# hoàn toàn tuyến tính.
+
+# Official test: chỉ 1 lần cho bản chốt cuối, không dùng để chọn.
+# python .\evaluate_test.py --checkpoint .\runs\<run đã chọn>\model_best_val_acc.pt --data-root .\mnist_data --device cuda
+
+# ------------------------------------------------------------------------------
+# ĐỐI CHỨNG CỔ ĐIỂN CÙNG READOUT: --model cnn3 (2026-11-15)
+# Phần quantum (encoder qconv4x3 + 3 cây, 5.316 tham số) thay bằng 3 CNN nhỏ độc lập (mỗi cây một CNN, cùng nhìn
+# cả ảnh 16x16): Conv(1->8) BN ReLU MaxPool -> Conv(8->23) BN ReLU MaxPool -> Flatten 368 (bố cục như cnn5k).
+# Mỗi nhánh 1.821 tham số; 3 nhánh 5.463. Head xây y hệt qcnn cho cùng --head (đầu vào 368 thay 372).
+# Đầu run in "Front" = phần CNN thay thế, Quantum=0. --front không dùng.
+# ------------------------------------------------------------------------------
+# C1. Đối chứng của 2c (qcnn + qconv4x3, head mlp, 17.264): cnn3 head mlp, 17.291
+python .\run_level32_front.py --model cnn3 --cnn3-widths 8 23 --head mlp --projection 10 --hidden 16 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn3_mlp_proj10 | Tee-Object -FilePath .\log_cnn3_mlp_proj10.txt
+
+# C2. Đối chứng của L1 (head linear3, 16.506): cnn3 head linear3, 16.533
+python .\run_level32_front.py --model cnn3 --cnn3-widths 8 23 --head linear3 --projection 10 --hidden 16 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn3_linear3 | Tee-Object -FilePath .\log_cnn3_linear3.txt
+
+# NGƯỠNG CHỐT TRƯỚC (MAX val, seed 0, cùng head, cùng điều kiện train):
+#   phần quantum (encoder + cây) hơn CNN cùng cỡ nếu qcnn >= cnn3 + 0,30; ngang trong ±0,30; kém nếu <= -0,30.
+#   C1 so 2c (99,03, giữa run); C2 so L1.
+# Dự đoán Claude: C1 khoảng 99,2-99,4 (cnn5k 5.578 tham số đã 99,11) -> nhiều khả năng quantum KÉM hoặc ngang.
+# C1, C2 chạy nhanh (vài chục giây/epoch).
