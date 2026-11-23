@@ -1,0 +1,7 @@
+# Run from the project root on the machine that has the R0 checkpoint (C:\Users\Public, the folder that contains mnist_data).
+
+# 0. Check first: no MNIST and no checkpoint needed. Send me the whole output.
+python .\full_quantum_16x16_tn_small_head\test_model.py
+
+# 1. Freeze the R0 quantum core and train the small heads. Send me the lines that start with RESULT.
+python .\full_quantum_16x16_tn_small_head\sweep_head.py --checkpoint .\full_quantum_16x16_2branch_multiscale_mlp16\runs\run_2branch_multiscale\full_quantum_mlp_aug_best.pt --data-root .\mnist_data --out-dir .\full_quantum_16x16_tn_small_head\runs\sweep_r0 --device cuda:0 --heads current k1_h8 k1_h16 k2_h16 k4_h16 --head-seeds 0 1 2 --seed 0 --split-seed 20260911 --aug-views 4 --aug-degrees 5 --aug-translate 0.05 --extract-batch-size 64 --batch-size 64 --epochs 60 --lr 1e-3
