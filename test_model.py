@@ -111,6 +111,26 @@ def test_parameters():
                 assert torch.equal(p, q), name
     print(f"    [PASS] share-final: samebasis FREE {counts['total_free']} (no phase {counts['total_free_nophase']}), "
           f"quantum share {counts['quantum_share_free'] * 100:.1f}%")
+    # --share-gates: khối 8 qubit mỗi lớp 1 unitary 1 qubit + 1 unitary 2 qubit dùng chung (FREE 4 x 20 = 80).
+    for kwargs, old, free, nophase in ((dict(share_gates=True), 8749, 7709, 7623),
+                                       (dict(share_gates=True, share_final=True), 8429, 7549, 7479)):
+        model = build(router="quantum", expert_head="samebasis", **kwargs)
+        counts = model.count_parameters()
+        stage = model.cores[0].merge_stage
+        assert all(gate is stage.rotations[l][0] for l in range(4) for gate in stage.rotations[l])
+        assert all(gate is stage.entanglers[l][0] for l in range(4) for gate in stage.entanglers[l])
+        assert counts["total"] == old and counts["total_free"] == free and counts["total_free_nophase"] == nophase, \
+            (kwargs, counts)
+        print(f"    [PASS] {kwargs}: old {old}, FREE {free} (no phase {nophase}), "
+              f"quantum share {counts['quantum_share_free'] * 100:.1f}%")
+    # Cùng seed: mọi tham số không thuộc khối 8 qubit giống hệt bản không chia sẻ.
+    shared, plain = build(router="quantum", expert_head="samebasis", share_gates=True), \
+        build(router="quantum", expert_head="samebasis")
+    plain_params = dict(plain.named_parameters())
+    for name, p in shared.named_parameters():
+        if "merge_stage" not in name:
+            assert torch.equal(p, plain_params[name]), name
+    print("    [PASS] share-gates keeps every other parameter identical (same seed)")
 
 
 def test_observables():

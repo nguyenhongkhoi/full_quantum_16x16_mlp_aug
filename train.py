@@ -132,6 +132,9 @@ def add_model_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--share-final", action="store_true",
                         help="All trees share one final 8-qubit block (4 strongly-entangling layers); conv-pool "
                              "stays per tree. Saves 2 x 640 free parameters with 3 trees")
+    parser.add_argument("--share-gates", action="store_true",
+                        help="Final 8-qubit block: each layer uses ONE 1-qubit unitary for all 8 qubits and ONE "
+                             "2-qubit unitary for all 8 ring pairs (20 instead of 160 free parameters per layer)")
     parser.add_argument("--expert-hidden", type=int, default=16, help="H of --expert-head mlp")
     parser.add_argument("--projection", type=int, default=10, help="Per-tree projection of --expert-head fusion")
     parser.add_argument("--hidden", type=int, default=16, help="Fusion hidden size of --expert-head fusion")
@@ -159,7 +162,9 @@ def add_model_arguments(parser: argparse.ArgumentParser) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--data-root", default="./mnist_data", help="Root directory for MNIST dataset")
+    parser.add_argument("--dataset", choices=["mnist", "fashion"], default="mnist",
+                        help="mnist hoặc fashion (Fashion-MNIST); cùng split 50k/10k, cùng aug")
+    parser.add_argument("--data-root", default="./mnist_data", help="Root directory for the dataset (tự tải)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--num-workers", type=int, default=0)
@@ -192,7 +197,7 @@ def main() -> None:
     seed_all(args.seed)
     device = torch.device(args.device)
     log("=" * 70)
-    log("QCNN level32 + quanvolution encoder + mixture-of-experts router, Static MNIST with augmentation")
+    log(f"QCNN level32 + quanvolution encoder + mixture-of-experts router, static {DATASET_NAMES[args.dataset]} 16x16 with augmentation")
     log("=" * 70)
     log(f"Device: {device} | Front end: {args.front} (readout {args.front_readout}) | Trees (experts): {args.orders} "
         f"| side_level={args.side_level}")
@@ -202,6 +207,8 @@ def main() -> None:
                    "nocorr-lowrank": f" (rank {args.head_rank})"}.get(args.expert_head, "")
     if args.share_final:
         log("Trees share ONE final 8-qubit block (--share-final)")
+    if args.share_gates:
+        log("Final 8-qubit block: one shared 1-qubit and one shared 2-qubit unitary per layer (--share-gates)")
     log(f"Expert head: {args.expert_head}{head_detail}"
         + (" (side level not measured)" if args.expert_head in ("bloch8", "obs10") else ""))
     log(f"Router: {args.router} | source={args.router_source} detach={args.router_detach} grid={args.router_grid}"

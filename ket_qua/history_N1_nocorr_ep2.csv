@@ -1,3 +1,0 @@
-epoch,train_loss,train_aux,train_acc,val_loss,val_acc,val_acc_top1,val_acc_uniform,val_acc_oracle,val_acc_tree0,val_acc_tree1,val_acc_tree2,gate_mean0,top1_share0,gate_mean1,top1_share1,gate_mean2,top1_share2,gate_entropy,lr,epoch_sec
-1,0.896841,0.000772,0.77776,0.286775,0.9371,0.889,0.9264,0.9657,0.8869,0.5165,0.6429,0.539282,0.9768,0.160353,0.0,0.300365,0.0232,0.882587,0.001,1263.73
-2,0.273449,0.002451,0.9291,0.163903,0.9594,0.8982,0.9387,0.9774,0.8681,0.377,0.5525,0.561211,0.8412,0.142754,0.0007,0.296034,0.1581,0.838936,0.001,1252.57

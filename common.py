@@ -24,6 +24,10 @@ def seed_all(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+# Bộ dữ liệu ảnh xám 28x28, 10 lớp; model tự resize về 16x16. "fashion" = Fashion-MNIST.
+DATASETS = {"mnist": datasets.MNIST, "fashion": datasets.FashionMNIST}
+DATASET_NAMES = {"mnist": "MNIST", "fashion": "Fashion-MNIST"}
+
 AUG_INTERPOLATION = {
     "bilinear": transforms.InterpolationMode.BILINEAR,
     "nearest": transforms.InterpolationMode.NEAREST,
@@ -54,10 +58,11 @@ def make_loaders(args: argparse.Namespace, device: torch.device):
 
     validation_transform = transforms.ToTensor()
 
-    train_base = datasets.MNIST(
+    dataset_cls = DATASETS[getattr(args, "dataset", "mnist")]
+    train_base = dataset_cls(
         root=args.data_root, train=True, download=True, transform=train_transform
     )
-    validation_base = datasets.MNIST(
+    validation_base = dataset_cls(
         root=args.data_root, train=True, download=True, transform=validation_transform
     )
 

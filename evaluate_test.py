@@ -19,6 +19,7 @@ from torchvision import datasets, transforms
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+from common import DATASET_NAMES, DATASETS
 from models import build_model
 
 
@@ -26,6 +27,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--mode", default="soft", help="soft, top1, uniform or tree<i>")
+    parser.add_argument("--dataset", choices=["mnist", "fashion"], default=None,
+                        help="Mặc định: dataset lúc train (đọc từ checkpoint)")
     parser.add_argument("--data-root", default="./mnist_data")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--batch-size", type=int, default=64)
@@ -43,7 +46,9 @@ def main() -> None:
     print(f"Loaded {path} (epoch {state.get('epoch')}); parameters {model.count_parameters()['total']}; "
           f"mode {args.mode}")
 
-    test = datasets.MNIST(root=args.data_root, train=False, download=True, transform=transforms.ToTensor())
+    dataset = args.dataset or state["config"]["args"].get("dataset", "mnist")
+    print(f"Test set: {DATASET_NAMES[dataset]} (official test, 10.000 ảnh)")
+    test = DATASETS[dataset](root=args.data_root, train=False, download=True, transform=transforms.ToTensor())
     loader = DataLoader(test, batch_size=args.batch_size, shuffle=False, num_workers=0,
                         pin_memory=device.type == "cuda")
     experts = len(model.orders)

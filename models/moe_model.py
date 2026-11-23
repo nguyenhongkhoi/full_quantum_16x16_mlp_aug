@@ -275,7 +275,7 @@ class MoEQCNN(nn.Module):
                  router_detach: bool = False, router_grid: Sequence[int] = (4, 4), router_qubits: int = 8,
                  router_layers: int = 1, router_ansatz: str = "se", router_init_scale: float = 0.01,
                  router_hidden: int = 18, mix: str = "logits", gate_noise: float = 0.0, head_rank: int = 4,
-                 share_final: bool = False):
+                 share_final: bool = False, share_gates: bool = False):
         super().__init__()
         for value, allowed, name in ((expert_head, EXPERT_HEADS, "expert head"), (mix, MIXES, "mix"),
                                      (router_source, ROUTER_SOURCES, "router source"), (router, ROUTERS, "router"),
@@ -314,6 +314,18 @@ class MoEQCNN(nn.Module):
         # entangling) của cây đầu. Các cây vẫn được tạo đủ như cũ (cùng seed thì phần còn lại khởi tạo y hệt), rồi
         # thay tham chiếu; khối của cây 2, 3 bị bỏ. Phần conv-pool và hệ số re-upload vẫn riêng từng cây.
         self.share_final = share_final
+        # --share-gates (folder _sharedgate, thêm 2026-11-20): trong khối 8 qubit cuối, mỗi lớp dùng CHUNG một unitary
+        # 1 qubit cho cả 8 qubit và một unitary 2 qubit cho cả 8 cặp vòng (i, i+r), giống conv-pool dùng chung cho
+        # mọi cặp. Mỗi lớp 4 + 16 = 20 tham số thay vì 8 x 4 + 8 x 16 = 160. Tạo đủ cổng như cũ (cùng seed thì phần
+        # còn lại khởi tạo y hệt) rồi trỏ mọi vị trí về cổng của qubit / cặp 0.
+        self.share_gates = share_gates
+        if share_gates:
+            for core in self.cores:
+                stage = core.merge_stage
+                for layer in range(len(stage.rotations)):
+                    stage.rotations[layer] = nn.ModuleList([stage.rotations[layer][0]] * len(stage.rotations[layer]))
+                    stage.entanglers[layer] = nn.ModuleList(
+                        [stage.entanglers[layer][0]] * len(stage.entanglers[layer]))
         if share_final:
             for core in self.cores[1:]:
                 core.merge_stage = self.cores[0].merge_stage

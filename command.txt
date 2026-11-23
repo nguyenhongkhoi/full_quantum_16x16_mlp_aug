@@ -1,130 +1,111 @@
-# ==============================================================================
-# fullquantum_16x16_frontQuan4x3_Moe: encoder qconv4x3 + router (mixture of experts) + 3 cây level32 + head
-# tuyến tính mỗi cây. MNIST tĩnh 16x16 (2026-11-17). Chạy từ trong folder này trên máy train (venv có CUDA).
-# Cùng điều kiện với 2c / L1: aug 5 độ / 0,05; batch 64; 50 epoch; lr 1e-3; patience 10; seed 0;
-# split-seed 20260911; 50.000 train / 10.000 val; dropout 0.
-# Không cần Tee-Object: train.py tự ghi <out-dir>\train_log.txt, terminal mỗi epoch một dòng.
-# Mỗi run khoảng như L1 / 2c (khoảng 1.350 s/epoch khi chạy một mình trên 4090); router thêm rất ít.
-# ==============================================================================
-$env:PYTHONIOENCODING = "utf-8"
+LỆNH CHẠY - QCNN S1 (bản chốt) + CNN cổ điển cùng cỡ, MNIST / Fashion-MNIST 16x16
+=================================================================================
+Tất cả lệnh chạy bằng PowerShell, đứng ở thư mục gốc repo (branch main). Số tham số báo theo FREE
+(unitary 2 qubit 16, 1 qubit 4; xem CACH_DEM_THAM_SO.txt). Mọi run: seed 0, split 50.000 train / 10.000
+validation (split-seed 20260911), aug xoay +-5 độ, dịch +-0,05, dropout 0, Adam lr 1e-3, ReduceLROnPlateau
+x0,5 patience 3, dừng sớm patience 10 theo val loss, tối đa 50 epoch. Chọn model theo validation;
+test chính thức chỉ chạy MỘT lần cho bản chốt (bước 5).
 
-# 0. Kiểm tra (1 lần, gửi toàn bộ output). Phải có "ALL TESTS PASSED". Nếu folder
-#    full_quantum_16x16_level32_qconv_linhead nằm cạnh folder này, test so luôn router none với L1 của linhead.
+Dữ liệu: --dataset mnist (mặc định) hoặc --dataset fashion. Tự tải vào --data-root (.\mnist_data dùng chung
+cho cả hai: MNIST nằm ở .\mnist_data\MNIST, Fashion-MNIST ở .\mnist_data\FashionMNIST).
+
+
+0. CÀI ĐẶT (một lần trên máy train)
+-----------------------------------
+git clone -b main https://github.com/nguyenhongkhoi/full_quantum_16x16_mlp_aug.git qcnn_s1
+cd qcnn_s1
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+# (Activate.ps1 bị chặn thì chạy trước: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned)
+
+# Mỗi lần mở PowerShell mới:
+cd <đường dẫn>\qcnn_s1
+.\.venv\Scripts\Activate.ps1
+$env:PYTHONIOENCODING = "utf-8"
+New-Item -ItemType Directory -Force -Path .\logs | Out-Null
+# Cập nhật code mới nhất:  git pull
+
+# Kiểm tra model (đếm tham số, so mạch với ma trận đầy đủ; vài phút, CPU):
 python .\test_model.py
 
-# ------------------------------------------------------------------------------
-# D0. CHẨN ĐOÁN TRƯỚC (rẻ, vài phút): nếu đã có checkpoint L1 (linhead, --head linear3), xem router có chỗ để giúp
-# không. In accuracy từng cây, theo lớp, oracle (ít nhất 1 cây đúng). Sửa đường dẫn cho đúng máy train.
-python .\analyze_routing.py --checkpoint ..\full_quantum_16x16_level32_qconv_linhead\runs\front_qconv4x3_linear3\model_best_val_acc.pt --data-root .\mnist_data
-# Ngưỡng: oracle - uniform < 0,30 điểm -> chọn 1 cây theo ảnh gần như không giúp được (router khó hơn L1).
 
-# ------------------------------------------------------------------------------
-# M1 (CHÍNH). Router lượng tử: lưới 4x4 (theta, phi gộp), 8 qubit, 2 vòng re-upload, 1 lớp "se" mỗi vòng.
-#    Đầu run phải in: Router=643 (circuit 640), Head=11190, Total=17149, Quantum share=33.8%
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head linear --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum
+1. QCNN S1 - BẢN CHÍNH (FREE 9.389, bỏ pha 9.135; MNIST MAX val 99,10)
+-----------------------------------------------------------------------
+Encoder quanvolution qconv4x3 -> 3 cây level32 (row / column / morton) -> head samebasis Linear(204,10)
+mỗi cây -> router lượng tử 8 qubit trộn logit. Log phải in dòng FREE parameters ... Total=9389.
 
-# M2 (ĐỐI CHỨNG BẮT BUỘC). Router cổ điển cùng cỡ: Linear(32,18) GELU Linear(18,3) = 651. Total=17157.
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head linear --dropout 0 --router mlp --router-hidden 18 --router-source encoder --router-grid 4 4 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_mlp18
+# MNIST
+python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\mnist_S1_samebasis | Tee-Object -FilePath .\logs\mnist_S1_samebasis.txt
 
-# M0 (CHỈ KHI CHƯA CHẠY L1 Ở LINHEAD). Router none = trung bình đều = L1 (16.506; cùng seed khởi tạo giống hệt L1).
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head linear --dropout 0 --router none --mix logits --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_none
+# Fashion-MNIST
+python .\train.py --dataset fashion --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\fashion_S1_samebasis | Tee-Object -FilePath .\logs\fashion_S1_samebasis.txt
 
-# M4 (ABLATION thứ tự quét). Router lượng tử, 3 cây CÙNG quét hàng (chỉ khác khởi tạo). Total=17149.
-python .\train.py --front qconv4x3 --orders row row row --side-level 32 --expert-head linear --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_rowrowrow
 
-# ---- TÙY CHỌN (chạy sau, nếu M1 cho thấy router có làm việc) ----
-# M3. Router tuyến tính nhỏ Linear(32,3) = 99 (router rẻ nhất).
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head linear --dropout 0 --router linear --router-source encoder --router-grid 4 4 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_linear
-# M5. Như M1 nhưng trộn XÁC SUẤT (MoE cổ điển, các cây cạnh tranh -> dễ chuyên hóa hơn).
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head linear --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix probs --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_probs
-# M6. Như M1, ép mỗi ảnh chọn rõ 1 cây (entropy-weight 0,05) để top1 sát soft.
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head linear --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0.05 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_sharp
+2. BIẾN THỂ ÍT THAM SỐ HƠN (cùng lệnh S1, thêm cờ; đổi --dataset tùy bộ dữ liệu)
+-------------------------------------------------------------------------------
+# G1 = S1 + --share-gates (khối 8 qubit cuối mỗi lớp dùng chung 1 U1 + 1 U2): FREE 7.709; MNIST MAX val 98,88
+python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --share-gates --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\mnist_G1_sharegates | Tee-Object -FilePath .\logs\mnist_G1_sharegates.txt
 
-# ------------------------------------------------------------------------------
-# Sau mỗi run: phân tích định tuyến trên validation (bảng lớp x cây), gửi output + history.csv.
-python .\analyze_routing.py --checkpoint .\runs\moe_quantum\model_best_val_acc.pt --data-root .\mnist_data
-python .\analyze_routing.py --checkpoint .\runs\moe_mlp18\model_best_val_acc.pt --data-root .\mnist_data
+# G2 = G1 + --share-final (3 cây dùng chung khối 8 qubit cuối): FREE 7.549; chưa chạy
+python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --share-gates --share-final --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\mnist_G2_sharegates_sharefinal | Tee-Object -FilePath .\logs\mnist_G2_sharegates_sharefinal.txt
 
-# ------------------------------------------------------------------------------
-# NGƯỠNG CHỐT TRƯỚC (Claude đề xuất 2026-11-17), MAX val acc soft, seed 0:
-#   Router có ích:                         M1 >= L1 (hoặc M0) + 0,30; ngang trong +/-0,30.
-#   Router lượng tử hơn cổ điển cùng cỡ:   M1 >= M2 + 0,30.
-#   Top1 dùng được (bớt 2/3 phần cây):     top1 của M1 (cùng epoch MAX) tụt <= 0,30 so với soft.
-#   Thứ tự quét khác giúp định tuyến:      M1 >= M4 + 0,30.
-#   Chẩn đoán D0: oracle - uniform < 0,30 thì router khó giúp.
-# Dự đoán Claude: M1 ngang L1; M1 ngang M2; top1 tụt 0,3-1,0; M4 không hơn M1.
+# Các tùy chọn khác của train.py (xem python .\train.py --help):
+#   --expert-head samebasis | linear (M1, 14.429) | nocorr (N1, 6.869) | zz | shared | mlp | bloch8 | obs10 | fusion
+#   --router quantum | none | linear | mlp ; --router-source encoder | pixels ; --router-detach
+#   --orders row column morton (đổi thứ tự / số cây) ; --share-gates ; --share-final ; --front-readout linear | direct
+#   --mix logits | probs ; --entropy-weight ; --router-lr ; --seed (3 seed: 0 1 2)
 
-# Official test: chỉ 1 lần cho bản chốt cuối; chọn --mode trước khi chạy.
-# python .\evaluate_test.py --checkpoint .\runs\<run đã chọn>\model_best_val_acc.pt --mode soft --data-root .\mnist_data --device cuda
 
-# ==============================================================================
-# HEAD NHỎ VÀ READOUT ENCODER (thêm 2026-11-17). Chạy trước KHÔNG router (--router none) để tách tác dụng của head;
-# so với L1 (head linear, 16.506). Head bloch8 / obs10 chỉ đọc 8 qubit cuối (không đo tầng 32).
-# ==============================================================================
-# H1. Head bloch8: Linear(24,10) mỗi cây. Total=6066, quantum 84,9%.
-python .\train.py --front qconv4x3 --front-readout linear --orders row column morton --expert-head bloch8 --router none --mix logits --balance-weight 0.01 --entropy-weight 0 --side-level 32 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\head_bloch8
+3. CNN CỔ ĐIỂN CÙNG CỠ (so sánh; cùng split / aug / optimizer / dừng sớm)
+-------------------------------------------------------------------------
+SmallCNN: Conv(1->a) BN ReLU Pool, Conv(a->b) BN ReLU Pool, Linear(16b,b) ReLU, Linear(b,10);
+tham số = 12a + 9ab + 16b^2 + 14b + 10. Chạy từ thư mục classical_cnn. Mỗi cỡ nên quét 3 lr (3e-3, 1e-3,
+3e-4), lấy lr có MAX val cao nhất.
 
-# H2. Head obs10: 10 quan sát cố định (Z0..Z7, X0, X4) x (hệ số + bias). Total=5376, quantum 95,8%.
-python .\train.py --front qconv4x3 --front-readout linear --orders row column morton --expert-head obs10 --obs-terms Z0 Z1 Z2 Z3 Z4 Z5 Z6 Z7 X0 X4 --router none --mix logits --balance-weight 0.01 --entropy-weight 0 --side-level 32 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\head_obs10
+| QCNN              | FREE   | CNN --widths | CNN tham số |
+|-------------------|-------:|-------------:|------------:|
+| S1                |  9.389 | 14 20        |  9.378      |
+| S1 (dạng khác)    |  9.389 | 10 21        |  9.370      |
+| G1                |  7.709 | 13 18        |  7.708      |
+| G2                |  7.549 | 12 18        |  7.534      |
+| M1                | 14.429 | 17 25        | 14.389      |
+Preset có sẵn (--preset): cnn1k 934, cnn2k 1.990, cnn3k 2.988, cnn5k 5.578, cnn12k 12.070, cnn17k 17.170,
+cnn19k 19.060, cnn30k 30.726, cnn50k 49.984, cnn85k 85.258.
 
-# H3. Head obs10 + encoder không readout cổ điển (direct). Total=5208, quantum 98,8%. Lưu ý: direct KHÔNG bắt đầu như
-#     ánh xạ đồng nhất (khác mọi run trước).
-python .\train.py --front qconv4x3 --front-readout direct --orders row column morton --expert-head obs10 --obs-terms Z0 Z1 Z2 Z3 Z4 Z5 Z6 Z7 X0 X4 --router none --mix logits --balance-weight 0.01 --entropy-weight 0 --side-level 32 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\head_obs10_direct
+cd .\classical_cnn
+New-Item -ItemType Directory -Force -Path .\logs | Out-Null
 
-# H4 (tùy chọn). Head linear + encoder direct: tách tác dụng của readout encoder (so L1). Total=16338.
-python .\train.py --front qconv4x3 --front-readout direct --orders row column morton --expert-head linear --router none --mix logits --balance-weight 0.01 --entropy-weight 0 --side-level 32 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\linear_direct
+# Một run lẻ (CNN cùng cỡ S1, MNIST, lr 1e-3):
+python .\run_cnn.py --dataset mnist --widths 14 20 --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root ..\mnist_data --out-dir .\runs\mnist_w14_20_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_mnist_w14_20_lr1e-3_seed0.txt
 
-# Kết hợp với router lượng tử (chạy sau, nếu head nhỏ giữ được accuracy): thêm --router quantum vào H1/H2/H3
-#   (Total 6709 / 6019 / 5851; quantum 86,3% / 96,2% / 98,9%), ví dụ:
-python .\train.py --front qconv4x3 --front-readout direct --orders row column morton --expert-head obs10 --obs-terms Z0 Z1 Z2 Z3 Z4 Z5 Z6 Z7 X0 X4 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --side-level 32 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_obs10_direct
+# Cùng run trên Fashion-MNIST:
+python .\run_cnn.py --dataset fashion --widths 14 20 --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root ..\mnist_data --out-dir .\runs\fashion_w14_20_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_fashion_w14_20_lr1e-3_seed0.txt
 
-# N1 (thêm 2026-11-18). Head nocorr: Linear(120,10) mỗi cây = 24 Bloch 8 qubit cuối + 96 tầng 32, BỎ 252 tương quan
-#    cặp. Như M1, chỉ đổi head. Đầu run phải in: Head=3630, Total=9589 (quantum ~60,4%).
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head nocorr --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_nocorr
-#    Ngưỡng chốt trước (MAX val soft, so M1 98,78 giữa run, H1 bloch8 + router quantum): tương quan không cần nếu
-#    N1 >= M1 - 0,30; tầng 32 gánh phần chính nếu N1 >= H1 + 0,30. Dự đoán Claude: N1 ngang M1; H1 thấp hơn N1.
-#    Bản không router (8.946, so L1): thay --router quantum ... --router-init-scale 0.01 bằng --router none.
+# Quét tự động 5 cỡ trong bảng x 3 lr (15 run, bỏ qua run đã xong, cuối cùng in bảng tong_hop.py):
+powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset mnist
+powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset fashion
+# Chỉ vài cỡ / một lr:
+powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset mnist -Widths "14 20","13 18" -Lrs "1e-3"
 
-# N2-N5 (thêm 2026-11-19). CHỈ CHẠY NẾU N1 KHẢ THI (N1 >= 98,73). Head nhỏ hơn nocorr, vẫn router quantum, như N1
-#    chỉ đổi --expert-head (và --head-rank). Chạy N2 trước; ngừng ở bậc đầu tiên tụt quá ngưỡng.
-#    N2 nocorr-z:        Linear(56,10) = 24 Bloch + chỉ <Z> 32 qubit tầng 32. Head=1710, Total=7669 (quantum 75,5%).
-#                        Trên máy thật tầng 32 chỉ cần đo Z (1 cấu hình thay vì 3).
-#    N3 nocorr-lowrank 4: Linear(120,4,không bias) -> Linear(4,10). Head=1590, Total=7549 (quantum 76,7%).
-#    N4 nocorr-lowrank 2: Head=810, Total=6769 (quantum 85,5%).
-#    N5 nocorr-shared:   một Linear(120,10) chung 3 cây. Head=1210, Total=7169 (quantum 80,7%).
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head nocorr-z --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_nocorr_z
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head nocorr-lowrank --head-rank 4 --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_nocorr_r4
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head nocorr-lowrank --head-rank 2 --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_nocorr_r2
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head nocorr-shared --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_nocorr_shared
-#    Ngưỡng chốt trước (MAX val soft, so N1): giữ accuracy nếu >= N1 - 0,30; đáng viết nếu >= 98,5 với quantum > 75%.
-#    Dự đoán Claude: N2 ngang N1 (X, Y tầng 32 ít thông tin hơn Z); N3 tụt 0,2-0,5; N4 tụt 0,5-1,5; N5 tụt 0,3-1,0
-#    (3 cây khác thứ tự quét nên qubit cùng chỉ số không cùng nghĩa).
+# Bảng kết quả (MAX val từng run + lr tốt nhất mỗi cỡ) -> ket_qua_cnn.csv:
+python .\tong_hop.py
+cd ..
 
-# S1, S2 (thêm 2026-11-19). Giữ tương quan cặp CÙNG TRỤC, bỏ tương quan chéo trục (XY, XZ, YX, ...). Head riêng mỗi cây,
-#    router quantum, như M1 chỉ đổi --expert-head. Chạy S1 trước.
-#    S1 samebasis: Linear(204,10) = 24 Bloch + 84 (XX, YY, ZZ của 28 cặp) + 96 tầng 32 = đúng các số lấy được từ
-#       3 cấu hình đo toàn cục X, Y, Z. Đầu run phải in: Head=6150, Total=12109 (quantum 47,8%).
-#    S2 zz: Linear(148,10) = 24 Bloch + 28 ZZ + 96 tầng 32. Đầu run phải in: Head=4470, Total=10429 (quantum 55,5%).
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_samebasis
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head zz --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_zz
-#    Ngưỡng chốt trước (MAX val soft, so M1 99,03): giữ accuracy nếu >= 98,73; tương quan chéo trục không cần nếu
-#    S1 >= 98,73; S1 - N1 >= 0,30 thì tương quan cùng trục gánh phần chính của tương quan. Dự đoán Claude (đính chính
-#    2026-11-19 22:48): S1 98,5-98,9 (sát ngưỡng); S2 thấp hơn S1 khoảng 0,1-0,4.
 
-# S3 (thêm 2026-11-20). Như S1 (samebasis) + --share-final: 3 cây DÙNG CHUNG khối 8 qubit cuối (4 lớp strongly
-#    entangling); conv-pool, re-upload vẫn riêng. Tham số FREE 8.109 (bỏ pha 7.983), quantum 22,0%.
-#    Đầu run phải in: "Trees share ONE final 8-qubit block", Total=9549 (đếm cũ), dòng FREE Total=8109.
-#    CNN cùng cỡ: classical_cnn_16x16 --widths 11 19 (8.065).
-python .\train.py --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --share-final --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\moe_quantum_samebasis_sharefinal
-#    Ngưỡng chốt trước (MAX val soft, so S1 cuối): dùng chung không mất gì nếu S3 >= S1 - 0,30.
-#    Dự đoán Claude: S3 tụt 0,1-0,4 so S1 (3 cây giống nhau hơn, router ít cái để chọn).
+4. PHÂN TÍCH ROUTER (validation, không dùng test)
+-------------------------------------------------
+python .\analyze_routing.py --checkpoint .\runs\mnist_S1_samebasis\model_best_val_acc.pt --data-root .\mnist_data
 
-# F (tùy chọn, kiểm tra folder). --expert-head fusion = head MLP của 2c (17.264); cùng seed khởi tạo giống hệt 2c.
-python .\train.py --front qconv4x3 --front-readout linear --orders row column morton --expert-head fusion --projection 10 --hidden 16 --router none --mix logits --balance-weight 0.01 --entropy-weight 0 --side-level 32 --dropout 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\fusion_2c
 
-# NGƯỠNG CHỐT TRƯỚC (MAX val soft, seed 0), head nhỏ so L1 (head linear, router none):
-#   Đáng viết hướng "head siêu nhỏ" nếu H1 hoặc H2 >= 98,5 (quantum > 85%).
-#   >= L1 - 0,30: head nhỏ không mất gì; L1 - 1,00 đến L1 - 0,30: mất vừa; < L1 - 1,00: head lớn gánh nhiều.
-#   Readout direct có hại nếu H3 <= H2 - 0,30 (hoặc H4 <= L1 - 0,30).
-#   Còn thiếu đối chứng cổ điển cùng head nhỏ (cnn3 + bloch8/obs10, hồi quy logistic trên pixel): chưa code.
-# Dự đoán Claude: H1 97-98,5; H2 thấp hơn H1 (khoảng 94-97); H3 thấp hơn H2.
+5. TEST CHÍNH THỨC - CHỈ MỘT LẦN, cho bản chốt (dataset tự đọc từ checkpoint)
+-----------------------------------------------------------------------------
+python .\evaluate_test.py --checkpoint .\runs\mnist_S1_samebasis\model_best_val_acc.pt --mode soft --data-root .\mnist_data
+python .\evaluate_test.py --checkpoint .\runs\fashion_S1_samebasis\model_best_val_acc.pt --mode soft --data-root .\mnist_data
+python .\classical_cnn\evaluate_test.py --checkpoint .\classical_cnn\runs\mnist_w14_20_lr1e-3_seed0\model_best_val_acc.pt --data-root .\mnist_data
+
+
+Đầu ra mỗi run (trong --out-dir): history.csv, config.json, summary.json, convergence.png, train_log.txt,
+model_best_val_acc.pt, model_best_val_loss.pt, model_last.pt. runs\ và logs\ không đưa lên git.

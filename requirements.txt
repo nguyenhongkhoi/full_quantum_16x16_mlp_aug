@@ -1,4 +1,9 @@
-torch>=2.0.0
-torchvision>=0.15.0
-numpy>=1.22.0
-matplotlib>=3.5.0
+# PyTorch ban CUDA 12.6 (chay RTX 4090/3060/4060 Ti, driver NVIDIA >= 560).
+# Cai:  pip install -r requirements.txt
+# Ban torch thuong tren PyPI cho Windows chi co CPU, nen phai lay tu index cua PyTorch o dong duoi.
+# Kiem tra: python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch==2.7.1+cu126
+torchvision==0.22.1+cu126
+numpy>=1.24
+matplotlib>=3.7

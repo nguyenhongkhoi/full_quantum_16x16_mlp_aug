@@ -45,4 +45,5 @@ def build_model(cfg: dict) -> MoEQCNN:
         gate_noise=cfg.get("gate_noise", 0.0),
         head_rank=cfg.get("head_rank", 4),
         share_final=cfg.get("share_final", False),
+        share_gates=cfg.get("share_gates", False),
     )

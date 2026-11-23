@@ -1,0 +1,82 @@
+"""Classical CNN baselines on the same 16x16 MNIST input as the QCNN models.
+
+Layout (SmallCNN, the layout of the earlier cnn1k..cnn5k and of Mammoth cnn-3k/5k/12k/19k):
+    resize 28x28 -> 16x16 (bilinear, align_corners=False), clamp to [0, 1]
+    Conv(1->a, 3x3, pad 1) BN ReLU MaxPool2      16x16 -> 8x8
+    Conv(a->b, 3x3, pad 1) BN ReLU MaxPool2      8x8 -> 4x4
+    Flatten (16b) -> Linear(16b, h) ReLU [Dropout] -> Linear(h, 10)       (h = b unless --hidden is given)
+Parameters with h = b: 12a + 9ab + 16b^2 + 14b + 10 (BatchNorm running statistics are buffers, not counted).
+The clamp is a no-op for bilinear resizing of [0, 1] images; it is kept to match the QCNN preprocessing exactly.
+"""
+from __future__ import annotations
+
+from typing import Dict, Optional, Sequence
+
+import torch
+import torch.nn.functional as F
+from torch import nn
+
+IMAGE_SIZE = 16
+
+# name: (a, b); hidden = b. Counts are checked in test_model.py.
+PRESETS = {
+    "cnn1k": (4, 6),      # 934     (= earlier cnn1k)
+    "cnn2k": (6, 9),      # 1,990   (= earlier cnn2k)
+    "cnn3k": (8, 11),     # 2,988   (= earlier cnn3k, Mammoth cnn-3k)
+    "cnn5k": (8, 16),     # 5,578   (= earlier cnn5k, Mammoth cnn-5k)
+    "cnn12k": (11, 24),   # 12,070  (= Mammoth cnn-12k)
+    "cnn17k": (16, 28),   # 17,170  (size of qcnn + qconv4x3, 17,264)
+    "cnn19k": (15, 30),   # 19,060  (= Mammoth cnn-19k)
+    "cnn30k": (20, 38),   # 30,726
+    "cnn50k": (24, 49),   # 49,984
+    "cnn85k": (32, 64),   # 85,258
+}
+EXPECTED = {"cnn1k": 934, "cnn2k": 1990, "cnn3k": 2988, "cnn5k": 5578, "cnn12k": 12070, "cnn17k": 17170,
+            "cnn19k": 19060, "cnn30k": 30726, "cnn50k": 49984, "cnn85k": 85258}
+
+
+def preprocess(images: torch.Tensor) -> torch.Tensor:
+    """(batch, 1, 28, 28) in [0, 1] -> (batch, 1, 16, 16), as preprocess_full_quantum before flattening."""
+    values = F.interpolate(images, size=(IMAGE_SIZE, IMAGE_SIZE), mode="bilinear", align_corners=False)
+    return values.clamp(0.0, 1.0)
+
+
+class SmallCNN(nn.Module):
+    def __init__(self, widths: Sequence[int] = (8, 16), hidden: Optional[int] = None, dropout: float = 0.0,
+                 num_classes: int = 10):
+        super().__init__()
+        first, second = widths
+        hidden = hidden or second
+        self.core = nn.Sequential(
+            nn.Conv2d(1, first, 3, padding=1), nn.BatchNorm2d(first), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(first, second, 3, padding=1), nn.BatchNorm2d(second), nn.ReLU(), nn.MaxPool2d(2),
+        )
+        layers = [nn.Flatten(), nn.Linear(second * (IMAGE_SIZE // 4) ** 2, hidden), nn.ReLU()]
+        if dropout > 0:
+            layers.append(nn.Dropout(dropout))
+        layers.append(nn.Linear(hidden, num_classes))
+        self.head = nn.Sequential(*layers)
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        return self.head(self.core(preprocess(images)))
+
+    def count_parameters(self) -> Dict[str, int]:
+        conv = sum(p.numel() for p in self.core.parameters())
+        head = sum(p.numel() for p in self.head.parameters())
+        return {"conv": conv, "head": head, "total": conv + head}
+
+
+def resolve_widths(cfg: dict) -> tuple[int, int]:
+    """--widths a b overrides --preset."""
+    widths = cfg.get("widths")
+    if widths:
+        return int(widths[0]), int(widths[1])
+    preset = cfg.get("preset", "cnn5k")
+    if preset not in PRESETS:
+        raise ValueError(f"Unknown preset {preset!r}; use one of {list(PRESETS)} or --widths a b")
+    return PRESETS[preset]
+
+
+def build_model(cfg: dict) -> SmallCNN:
+    """From run arguments (vars(args)) or the args saved in a checkpoint config."""
+    return SmallCNN(widths=resolve_widths(cfg), hidden=cfg.get("hidden"), dropout=cfg.get("dropout", 0.0))

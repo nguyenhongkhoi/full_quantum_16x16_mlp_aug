@@ -51,7 +51,8 @@ def main() -> None:
 
     data_args = SimpleNamespace(split_seed=cfg.get("split_seed", 20260911), seed=cfg.get("seed", 0),
                                 aug_degrees=0.0, aug_translate=0.0, aug_interpolation="bilinear",
-                                data_root=args.data_root, batch_size=args.batch_size, num_workers=0)
+                                data_root=args.data_root, batch_size=args.batch_size, num_workers=0,
+                                dataset=cfg.get("dataset", "mnist"))
     _, val_loader = make_loaders(data_args, device)
     data = collect(model, val_loader, device)
     overall = summarize(model, data)
