@@ -1,0 +1,62 @@
+# ==============================================================================
+# LEVEL32 + MẠNG CỔ ĐIỂN NHỎ TRƯỚC MẠCH, MNIST TĨNH (2026-11-12)
+# Chạy từ trong folder full_quantum_16x16_level32_front trên máy train (venv có CUDA).
+# Mọi lệnh giống hệt bản level32_aug 2a, chỉ khác --front và --out-dir.
+# Ở epoch đầu, mỗi phần đầu là đồng nhất, nên model giống hệt level32.
+# ==============================================================================
+$env:PYTHONIOENCODING = "utf-8"
+
+# 1. Kiểm tra (chạy 1 lần, gửi toàn bộ output):
+#    số tham số none 19.118 / conv1 19.128 / cnn4 19.195 / cnn8 19.271; enc-linear 1.976 / enc-cnn 18.392;
+#    lúc khởi đầu output giống level32; phần đầu nhận gradient.
+python .\test_model.py
+
+# 2a. Đối chứng level32, không có phần đầu (19.118). Bỏ qua nếu run level32_aug đã có
+#     ĐÚNG lệnh này (dropout 0,2; aug 5 độ / 0,05; 50 epoch; patience 10; seed 0; split-seed 20260911);
+#     khi đó gửi summary.json và history.csv của run đó để lấy số.
+python .\run_level32_front.py --front none --side-level 32 --projection 12 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\front_none | Tee-Object -FilePath .\log_front_none.txt
+
+# 2b. conv1: một conv 3x3 một kênh, +10 tham số (19.128, quantum 25,2%).
+python .\run_level32_front.py --front conv1 --side-level 32 --projection 12 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\front_conv1 | Tee-Object -FilePath .\log_front_conv1.txt
+
+# 2c. cnn4: x + Conv(4->1)(GELU(Conv(1->4)(x))), +77 tham số (19.195, quantum 25,1%).
+python .\run_level32_front.py --front cnn4 --side-level 32 --projection 12 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\front_cnn4 | Tee-Object -FilePath .\log_front_cnn4.txt
+
+# 2d. (Chạy trước, 2026-11-12 16:52) Encoder 3 conv 12 kênh, ra 2 kênh: RY(pi*theta) rồi RZ(pi*phi) cho mỗi qubit,
+#     +1.646 tham số; head giảm nhẹ: --projection 10 (head 11.948 thay 14.294). Tổng 18.418, quantum 26,2%.
+python .\run_level32_front.py --front deep12p --side-level 32 --projection 10 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\front_deep12p_proj10 | Tee-Object -FilePath .\log_front_deep12p_proj10.txt
+
+# 2e. (Tùy chọn) Như 2d nhưng chỉ RY, không có phi: +1.537, tổng 18.309. Cho biết phi có giúp không.
+python .\run_level32_front.py --front deep12 --side-level 32 --projection 10 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\front_deep12_proj10 | Tee-Object -FilePath .\log_front_deep12_proj10.txt
+
+# Ngưỡng chốt trước (Claude đề xuất 2026-11-12; áp cho cả 2b-2e), so với 2a cùng seed, trên validation 10.000 ảnh.
+# Ghi cả MAX (val acc cao nhất) và CK (val acc ở checkpoint val loss thấp nhất); quyết định theo MAX.
+#   hơn   nếu MAX >= MAX(2a) + 0,30
+#   ngang nếu trong khoảng +-0,30
+#   kém   nếu MAX <= MAX(2a) - 0,30
+# Thêm cho 2d: mục tiêu của người dùng là vượt 99%; ghi riêng MAX có đạt 99,00 không.
+# Nếu cnn4/deep12(p) "hơn": trước khi viết là phần quantum có ích, cần đối chứng cổ điển cùng encoder và cùng tổng
+# tham số (người dùng để sau). Nếu chỉ conv1 "hơn": phần đầu 10 tham số, không cần đối chứng đó.
+# Gửi: summary.json, history.csv của mỗi run (hoặc ảnh dòng cuối log).
+
+# 2f, 2g. (2026-11-13) ĐỐI CHỨNG CỔ ĐIỂN CỦA 2d: cùng encoder deep12p (cùng code, cùng cách khởi tạo; giá trị ngẫu nhiên ban đầu khác), BỎ MẠCH.
+#     Mọi tham số train giống 2d. --projection/--side-level không dùng cho 2 model này.
+#     Mỗi run nhanh hơn 2d nhiều (không có mạch).
+# 2f. enc-linear: encoder 1.646 + AvgPool 4x4 + Linear(32,10) = 1.976 tham số. Đo riêng phần encoder làm được bao nhiêu.
+python .\run_level32_front.py --model enc-linear --front deep12p --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\ctrl_enc_linear_deep12p | Tee-Object -FilePath .\log_ctrl_enc_linear_deep12p.txt
+
+# 2g. enc-cnn: encoder 1.646 + Conv(2->20) BN ReLU MaxPool + Conv(20->32) BN ReLU MaxPool + Linear(512,20) ReLU Dropout
+#     + Linear(20,10) = 18.392 tham số (2d: 18.418). Thay mạch + head bằng CNN cổ điển cùng cỡ.
+python .\run_level32_front.py --model enc-cnn --front deep12p --cnn-widths 20 32 --cnn-hidden 20 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\ctrl_enc_cnn_deep12p | Tee-Object -FilePath .\log_ctrl_enc_cnn_deep12p.txt
+
+# Ngưỡng chốt trước (Claude đề xuất 2026-11-13 15:10), MAX val, so với 2d deep12p proj10 (MAX 99,14; CK 99,09):
+#   2g: phần quantum có ích       nếu MAX(2g) <= 98,84 (2d hơn từ 0,30)
+#       ngang (mạch không thêm gì đo được) nếu 98,84 < MAX(2g) < 99,44
+#       mạch kém hơn CNN cùng cỡ  nếu MAX(2g) >= 99,44
+#   2f: encoder tự gánh gần hết    nếu MAX(2f) >= 98,84; nếu thấp hơn nhiều thì mạch + head đóng góp phần còn lại.
+# Dự đoán của Claude (ghi để kiểm): 2g khoảng 99,1-99,3 (cnn5k 5.578 tham số đã 99,11), nhiều khả năng "ngang";
+# 2f khoảng 97-98.
+# Gửi: history.csv (hoặc ảnh dòng cuối) của mỗi run.
+
+# 3. Official test: chỉ 1 lần, sau khi đã chọn bản cuối bằng validation.
+# python .\evaluate_test.py --checkpoint .\runs\<run đã chọn>\model_best_val_acc.pt --data-root .\mnist_data --device cuda
