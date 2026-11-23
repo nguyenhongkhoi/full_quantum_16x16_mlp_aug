@@ -1,0 +1,20 @@
+# Run from the project root on the training machine (the folder that contains mnist_data).
+# Same protocol as R0. Re-running the same command resumes the run.
+
+# 0. Check first: no MNIST needed. Send me the whole output.
+python .\full_quantum_16x16_r0_improved\test_model.py --device cuda:0
+
+# 1. Fusion, 3 branches, 18.194 parameters. Compare with the old fusion run (about 98,7%).
+python .\full_quantum_16x16_r0_improved\run_r0.py --spatial-orders row column morton --fusion --models full_quantum --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --fq-batch-size 64 --fq-pretrain-epochs 20 --fq-pretrain-lr 2e-3 --fq-refine-epochs 5 --fq-refine-lr 2e-4 --fq-epochs 60 --fq-core-lr 1e-4 --fq-readout-lr 1e-3 --fq-patience 10 --fq-reupload --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_r0_improved\runs\fusion3
+
+# 2. Fusion, 2 branches, 12.202 parameters. Compare with R0: almost the same size.
+python .\full_quantum_16x16_r0_improved\run_r0.py --spatial-orders row morton --fusion --models full_quantum --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --fq-batch-size 64 --fq-pretrain-epochs 20 --fq-pretrain-lr 2e-3 --fq-refine-epochs 5 --fq-refine-lr 2e-4 --fq-epochs 60 --fq-core-lr 1e-4 --fq-readout-lr 1e-3 --fq-patience 10 --fq-reupload --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_r0_improved\runs\fusion2
+
+# 3. R0 with balanced conv gates, 12.420 parameters. Compare with R0: only the initialization changes.
+python .\full_quantum_16x16_r0_improved\run_r0.py --spatial-orders row morton --balanced-conv --models full_quantum --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --fq-batch-size 64 --fq-pretrain-epochs 20 --fq-pretrain-lr 2e-3 --fq-refine-epochs 5 --fq-refine-lr 2e-4 --fq-epochs 60 --fq-core-lr 1e-4 --fq-readout-lr 1e-3 --fq-patience 10 --fq-reupload --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_r0_improved\runs\balanced
+
+# 4. Best fusion with balanced conv gates. Replace the branches and folder name if fusion2 wins.
+python .\full_quantum_16x16_r0_improved\run_r0.py --spatial-orders row column morton --fusion --balanced-conv --models full_quantum --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --fq-batch-size 64 --fq-pretrain-epochs 20 --fq-pretrain-lr 2e-3 --fq-refine-epochs 5 --fq-refine-lr 2e-4 --fq-epochs 60 --fq-core-lr 1e-4 --fq-readout-lr 1e-3 --fq-patience 10 --fq-reupload --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_r0_improved\runs\fusion3_balanced
+
+# 5. Only once, for the final configuration chosen by validation.
+python .\full_quantum_16x16_r0_improved\evaluate_test.py --checkpoint .\full_quantum_16x16_r0_improved\runs\fusion3\full_quantum_mlp_aug_best.pt --data-root .\mnist_data --device cuda:0

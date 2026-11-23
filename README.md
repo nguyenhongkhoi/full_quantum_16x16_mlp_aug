@@ -1,0 +1,11 @@
+# old-r0-improved
+
+R0 cai tien: QCNN chuan voi fusion va phep do nhanh hon (ban cu).
+
+**Ket qua:** Xem so nghien cuu.
+
+- Folder goc: `full_quantum_16x16_r0_improved`
+- Lenh chay day du: `command.txt`
+- Mo ta chi tiet: `README_CHI_TIET.md`
+
+MNIST 16x16, seed 0, split-seed 20260911, aug (xoay +-5, dich +-0,05), `--dropout 0`. So tham so bao theo FREE (unitary 2 qubit 16, 1 qubit 4).
