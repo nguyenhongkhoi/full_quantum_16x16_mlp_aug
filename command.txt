@@ -1,0 +1,48 @@
+# Run from the project root on the training machine (the folder that contains mnist_data).
+# Every training command spells out the full protocol, the same as the earlier 16x16 runs.
+# Use --device cuda:0 or cuda:1 to choose a GPU. Re-running the same command resumes the run.
+
+# 0. Check first: no MNIST needed. Send me the whole output.
+python .\full_quantum_16x16_patch_entangled\test_model.py --device cuda:0
+
+# 1. Base: 8-qubit patches. Compare with b2 (97,10%).
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s1_p8 --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s1_p8
+
+# 2. 12-qubit patches. Compare with step 1.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s2_p12 --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s2_p12
+
+# 3. Re-upload, 2 rounds. Compare with step 2.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s3_ru2 --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s3_ru2
+
+# 4. Re-upload, 3 rounds. Compare with step 3.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s4_ru3 --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s4_ru3
+
+# 5. Overlapping patches. Compare with step 3.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s5_overlap --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s5_overlap
+
+# 6. Four channels. Compare with step 5.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s6_k4 --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s6_k4
+
+# 7. 16-qubit patches, the most memory per patch. Compare with step 2.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s7_p16 --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s7_p16
+
+# 8. About 10k parameters. Compare with step 6.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s8_xl --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s8_xl
+
+# 9a. Check only the two new presets, after copying the new code.
+python .\full_quantum_16x16_patch_entangled\test_model.py --device cuda:0 --presets s9_meas s10_meas_ru2
+
+# 9. Measure many Paulis per patch, no merge tree. Compare with step 2.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s9_meas --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s9_meas
+
+# 10. Same, with 2 re-upload rounds. Compare with step 9 and step 3.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s10_meas_ru2 --readout mlp --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s10_meas_ru2
+
+# A. Linear readout. Replace s3_ru2 with your best preset, in both places.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s3_ru2 --readout linear --init balanced --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s3_ru2_linear
+
+# B. Frozen random gates, only the head learns. Replace s3_ru2 with your best preset, in both places.
+python .\full_quantum_16x16_patch_entangled\run_patch.py --preset s3_ru2 --readout mlp --init random --freeze-core --device cuda:0 --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_patch_entangled\runs\s3_ru2_frozen
+
+# C. Only once, for the final configuration chosen by validation. Replace s3_ru2 with that configuration.
+python .\full_quantum_16x16_patch_entangled\evaluate_test.py --checkpoint .\full_quantum_16x16_patch_entangled\runs\s3_ru2\full_quantum_mlp_aug_best.pt --data-root .\mnist_data --device cuda:0 --batch-size 64

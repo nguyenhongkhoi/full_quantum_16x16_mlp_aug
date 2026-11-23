@@ -1,0 +1,58 @@
+# --- Thu muc rieng / khong dua len git ---
+noread/
+.claude/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# --- Du lieu tai ve (MNIST, Fashion-MNIST, ...) ---
+mnist_data/
+**/mnist_data/
+data/MNIST/
+data/FashionMNIST/
+**/MNIST/raw/
+**/FashionMNIST/raw/
+*-ubyte
+*-ubyte.gz
+
+# --- Output train: checkpoint, log, run ---
+runs/
+**/runs/
+checkpoints/
+**/checkpoints/
+logs/
+**/logs/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+wandb/
+data/results/
+
+# --- Mammoth clone / venv tren may train ---
+mammoth_full_package/mammoth/
+mammoth_full_package/mammoth-*/
+mammoth_full_package/.venv/
+
+# --- Zip de chep tay (da co git thay the) ---
+*.zip
+
+# --- LaTeX build ---
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# --- He dieu hanh / editor ---
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
