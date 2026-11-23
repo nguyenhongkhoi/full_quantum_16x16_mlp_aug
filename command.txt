@@ -1,0 +1,52 @@
+# ==============================================================================
+# THANG CNN CỔ ĐIỂN, MNIST TĨNH 16x16 (classical_cnn_16x16, 2026-11-15)
+# Chạy từ trong folder classical_cnn_16x16 trên máy train. Cùng dữ liệu, split (20260911), aug (5 độ / 0,05),
+# Adam, ReduceLROnPlateau (x0,5, chờ 3), dừng sớm 10, 50 epoch, batch 64 như runner QCNN level32: số so trực tiếp.
+# Bố cục SmallCNN (như cnn5k, Mammoth cnn-19k): Conv(1->a) BN ReLU Pool, Conv(a->b) BN ReLU Pool,
+# Linear(16b, b) ReLU, Linear(b, 10).
+#   cnn1k (4,6) 934 | cnn2k (6,9) 1.990 | cnn3k (8,11) 2.988 | cnn5k (8,16) 5.578 | cnn12k (11,24) 12.070
+#   cnn17k (16,28) 17.170 | cnn19k (15,30) 19.060 | cnn30k (20,38) 30.726 | cnn50k (24,49) 49.984
+#   cnn85k (32,64) 85.258
+# Mỗi cỡ quét lr 3e-3, 1e-3, 3e-4 (seed 0); chọn lr theo MAX val. Dropout 0.
+# ==============================================================================
+$env:PYTHONIOENCODING = "utf-8"
+
+# 0. Kiểm tra (vài giây). Phải có "ALL TESTS PASSED SUCCESSFULLY!".
+python .\test_model.py
+
+# 1. Chạy cả thang (30 run, lần lượt; chạy lại sẽ bỏ qua run đã xong). Cuối tự in bảng tổng hợp.
+powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1
+
+# 1b. Nếu muốn chạy tay từng run (ưu tiên: cnn17k ba lr trước, rồi cnn19k, cnn5k, sau đó các cỡ còn lại).
+#     Tạo folder logs trước (Tee-Object không tự tạo folder; run_sweep.ps1 thì tự tạo):
+New-Item -ItemType Directory -Force -Path .\logs
+python .\run_cnn.py --preset cnn17k --lr 3e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn17k_lr3e-3_seed0 | Tee-Object -FilePath .\logs\log_cnn17k_lr3e-3_seed0.txt
+python .\run_cnn.py --preset cnn17k --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn17k_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_cnn17k_lr1e-3_seed0.txt
+python .\run_cnn.py --preset cnn17k --lr 3e-4 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn17k_lr3e-4_seed0 | Tee-Object -FilePath .\logs\log_cnn17k_lr3e-4_seed0.txt
+# (thêm 2026-11-20) Đếm tham số QCNN đã sửa (xem fullquantum_16x16_frontQuan4x3_Moe/CACH_DEM_THAM_SO.txt).
+#    CNN cùng cỡ theo số FREE: S1 samebasis 9.389 -> --widths 11 21 (9.571) dưới đây hoặc --widths 10 21 (9.370);
+#    S3 samebasis + share-final 8.109 -> --widths 11 19 (8.065); M1 14.429 -> --widths 13 26 (14.388).
+python .\run_cnn.py --widths 11 19 --lr 3e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn8k_w11_19_lr3e-3_seed0 | Tee-Object -FilePath .\logs\log_cnn8k_w11_19_lr3e-3_seed0.txt
+python .\run_cnn.py --widths 11 19 --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn8k_w11_19_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_cnn8k_w11_19_lr1e-3_seed0.txt
+python .\run_cnn.py --widths 11 19 --lr 3e-4 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn8k_w11_19_lr3e-4_seed0 | Tee-Object -FilePath .\logs\log_cnn8k_w11_19_lr3e-4_seed0.txt
+# (thêm 2026-11-19) CNN cùng cỡ N1 nocorr (9.589): --widths 11 21 -> 9.571 tham số. Đầu run phải in 9571.
+python .\run_cnn.py --widths 11 21 --lr 3e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn10k_w11_21_lr3e-3_seed0 | Tee-Object -FilePath .\logs\log_cnn10k_w11_21_lr3e-3_seed0.txt
+python .\run_cnn.py --widths 11 21 --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn10k_w11_21_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_cnn10k_w11_21_lr1e-3_seed0.txt
+python .\run_cnn.py --widths 11 21 --lr 3e-4 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\cnn10k_w11_21_lr3e-4_seed0 | Tee-Object -FilePath .\logs\log_cnn10k_w11_21_lr3e-4_seed0.txt
+# Cỡ khác: đổi --preset (cnn1k ... cnn85k) và tên out-dir/log. Cỡ tùy ý: --widths a b (bỏ --preset).
+
+# 2. Tổng hợp bất kỳ lúc nào (kể cả khi đang chạy): in bảng, lr tốt nhất mỗi cỡ, ghi ket_qua_cnn.csv
+python .\tong_hop.py
+
+# 3. Official test: CHỈ 1 lần cho bản CNN chốt cuối (sau khi chọn bằng validation), không dùng để chọn.
+# python .\evaluate_test.py --checkpoint .\runs\<run đã chọn>\model_best_val_acc.pt --data-root .\mnist_data --device cuda
+
+# Gửi: output của tong_hop.py (hoặc ket_qua_cnn.csv).
+
+# NGƯỠNG CHỐT TRƯỚC (Claude đề xuất 2026-11-15, MAX val, seed 0, lr tốt nhất của mỗi cỡ):
+#   So QCNN 2c (qcnn + qconv4x3, head mlp, 17.264, MAX 99,03 giữa run) với cnn17k (17.170):
+#     QCNN hơn nếu >= cnn17k + 0,30; ngang ±0,30; kém nếu <= cnn17k - 0,30.
+#   Đường cong accuracy theo số tham số dùng để nói "QCNN ngang CNN cỡ bao nhiêu".
+# Dự đoán Claude: cnn5k khoảng 99,0-99,1 (khớp số cũ 99,11); cnn17k khoảng 99,2-99,4; cnn85k khoảng 99,4-99,5;
+#   lr 3e-3 hoặc 1e-3 tốt nhất cho cỡ nhỏ.
+# Thời gian ước tính: mỗi run khoảng 15-35 phút (giới hạn bởi aug trên CPU, num_workers 0); 30 run khoảng 8-17 giờ.
