@@ -1,7 +1,7 @@
 LỆNH CHẠY - QCNN S1 (bản chốt) + CNN cổ điển cùng cỡ, MNIST / Fashion-MNIST 16x16
 =================================================================================
 Tất cả lệnh chạy bằng PowerShell, đứng ở thư mục gốc repo (branch main). Số tham số báo theo FREE
-(unitary 2 qubit 16, 1 qubit 4; xem CACH_DEM_THAM_SO.txt). Mọi run: seed 0, split 50.000 train / 10.000
+(unitary 2 qubit 16, 1 qubit 4; xem docs\CACH_DEM_THAM_SO.txt). Mọi run: seed 0, split 50.000 train / 10.000
 validation (split-seed 20260911), aug xoay +-5 độ, dịch +-0,05, dropout 0, Adam lr 1e-3, ReduceLROnPlateau
 x0,5 patience 3, dừng sớm patience 10 theo val loss, tối đa 50 epoch. Chọn model theo validation;
 test chính thức chỉ chạy MỘT lần cho bản chốt (bước 5).
@@ -105,6 +105,12 @@ python .\analyze_routing.py --checkpoint .\runs\mnist_S1_samebasis\model_best_va
 python .\evaluate_test.py --checkpoint .\runs\mnist_S1_samebasis\model_best_val_acc.pt --mode soft --data-root .\mnist_data
 python .\evaluate_test.py --checkpoint .\runs\fashion_S1_samebasis\model_best_val_acc.pt --mode soft --data-root .\mnist_data
 python .\classical_cnn\evaluate_test.py --checkpoint .\classical_cnn\runs\mnist_w14_20_lr1e-3_seed0\model_best_val_acc.pt --data-root .\mnist_data
+
+
+6. VẼ BIỂU ĐỒ SO SÁNH (mọi run, PNG + PDF vector; chi tiết trong plot.md)
+------------------------------------------------------------------------
+python .\plot_all.py
+python .\plot_all.py --dataset all --formats png pdf --out-dir .\figures_paper --labels mnist_S1_samebasis=S1 mnist_G1_sharegates=G1 mnist_G2_sharegates_sharefinal=G2 fashion_S1_samebasis=S1 fashion_G1_sharegates=G1
 
 
 Đầu ra mỗi run (trong --out-dir): history.csv, config.json, summary.json, convergence.png, train_log.txt,

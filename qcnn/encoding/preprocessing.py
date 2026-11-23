@@ -1,3 +1,4 @@
+"""Tiền xử lý ảnh: xám, resize 16x16, làm phẳng."""
 from __future__ import annotations
 
 from typing import Sequence

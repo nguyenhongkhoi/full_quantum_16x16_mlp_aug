@@ -56,3 +56,7 @@ desktop.ini
 .DS_Store
 .vscode/
 .idea/
+
+# --- Hinh do plot_all.py ve ---
+figures/
+figures_*/

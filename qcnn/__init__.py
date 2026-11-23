@@ -1,6 +1,15 @@
-from .moe_model import (DEFAULT_OBS, EXPERT_HEADS, FRONT_READOUTS, MIXES, ROUTER_SOURCES, SPATIAL_ORDERS,
+"""QCNN S1: encoder quanvolution -> 3 cây QCNN tensor network theo thứ tự quét -> head -> router lượng tử (MoE).
+
+Cấu trúc:
+    layers/    khối cơ bản: unitary học được, cổng, Pauli, Bloch, đếm tham số FREE
+    encoding/  tiền xử lý ảnh, mã hóa góc, encoder quanvolution (qconv)
+    core/      cây QCNN tensor network (conv-pool, khối 8 qubit), re-upload, thứ tự quét
+    moe/       head mỗi cây, router, model MoEQCNN
+    data.py, evaluation.py
+"""
+from .moe.model import (DEFAULT_OBS, EXPERT_HEADS, FRONT_READOUTS, MIXES, ROUTER_SOURCES, SPATIAL_ORDERS,
                         MoEQCNN)
-from .router import ANSATZE, ROUTERS
+from .moe.router import ANSATZE, ROUTERS
 
 __all__ = ["MoEQCNN", "build_model", "EXPERT_HEADS", "FRONT_READOUTS", "MIXES", "ROUTER_SOURCES", "SPATIAL_ORDERS",
            "ROUTERS", "ANSATZE", "DEFAULT_OBS"]
