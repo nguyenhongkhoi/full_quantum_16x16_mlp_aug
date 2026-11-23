@@ -1,0 +1,38 @@
+# ==============================================================================
+# HƯỚNG DẪN CHẠY MÔ HÌNH LEVEL32 TRÊN TẬP MNIST TĨNH CÓ DATA AUGMENTATION
+# Workspace: full_quantum_16x16_level32_aug
+# Khuyến nghị: Chạy trong môi trường venv PyTorch có hỗ trợ CUDA (ví dụ trên máy 4090)
+# ==============================================================================
+
+# 1. KIỂM TRA MÔ HÌNH (Unit Test & Kiểm tra số lượng tham số)
+# Kiểm tra số tham số đạt chuẩn 19.118 (hoặc 19.148 với Graph Layer), forward/backward pass.
+python .\test_model.py
+
+# ------------------------------------------------------------------------------
+# 2. HUẤN LUYỆN CHÍNH (TRAINING)
+# ------------------------------------------------------------------------------
+
+# 2a. Bản Level32 Chuẩn (19.118 tham số)
+# 3 nhánh quét (row, column, morton), đọc Bloch vector 32 qubit tầng giữa, Fast Pauli 276.
+# Augmentation: Xoay +/- 5 độ, dịch +/- 0.05. Split: 50.000 train / 10.000 val (seed 20260911).
+# Dropout(0.2) sau GELU ở projection và fusion head; không thêm tham số học được.
+python .\run_level32_aug.py --side-level 32 --projection 12 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --device cuda --data-root .\mnist_data --out-dir .\runs\level32_std_aug
+
+# 2b. Bản Level32 + Graph Layer 8 láng giềng (19.148 tham số)
+# Tích hợp thêm tầng đồ thị tương tác Ising ZZ giữa 8 pixel láng giềng trước mỗi cây.
+python .\run_level32_aug.py --side-level 32 --projection 12 --dropout 0.2 --graph-layer --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --device cuda --data-root .\mnist_data --out-dir .\runs\level32_graph_aug
+
+# 2c. Bản Level32 + Circuit LR x4 (19.118 tham số)
+# Cho phép các tham số mạch lượng tử học nhanh gấp 4 lần dưới Adam.
+python .\run_level32_aug.py --side-level 32 --projection 12 --dropout 0.2 --circuit-lr-scale 4.0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --device cuda --data-root .\mnist_data --out-dir .\runs\level32_lr4_aug
+
+# ------------------------------------------------------------------------------
+# 3. ĐÁNH GIÁ TRÊN TẬP TEST CHÍNH THỨC (OFFICIAL MNIST TEST 10,000 ẢNH)
+# Chạy đúng 1 lần sau khi đã huấn luyện xong và chọn checkpoint theo validation.
+# ------------------------------------------------------------------------------
+
+# Đánh giá checkpoint tốt nhất theo validation accuracy của bản Level32 chuẩn:
+python .\evaluate_test.py --checkpoint .\runs\level32_std_aug\model_best_val_acc.pt --data-root .\mnist_data --device cuda
+
+# Đánh giá checkpoint tốt nhất của bản Graph Layer:
+python .\evaluate_test.py --checkpoint .\runs\level32_graph_aug\model_best_val_acc.pt --data-root .\mnist_data --device cuda
