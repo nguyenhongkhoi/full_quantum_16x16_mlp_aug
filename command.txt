@@ -1,0 +1,30 @@
+# Run from D:\data_system\full_quantum_16x16_mlp_aug (the project root on the training machine).
+# Every training command spells out the full protocol, identical to the 2-branch run (R0) except for
+# --variant, --shifts and --out-dir. R0 also has re-upload in phase 3; this folder does not.
+
+# 1. Check first: no MNIST needed. Send me the output, especially if anything fails.
+python .\full_quantum_16x16_morton_bond2\test_model.py --device cuda
+
+# 2. Main run. Start here: compare with the 2-branch run (R0).
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant b2 --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\b2
+
+# 3. Remaining variants of the same architecture.
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant b1 --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\b1
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant b0 --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\b0
+
+# 4. R2: 1-qubit tree without the 8-qubit stage.
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant tree1q --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\tree1q
+
+# 5. R1: small classical CNN as a reference.
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant cnn5k --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\cnn5k
+
+# 5b. Smaller CNNs, same layout, sized near b2, b1 and b0.
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant cnn3k --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\cnn3k
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant cnn2k --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\cnn2k
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant cnn1k --shifts 0 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\cnn1k
+
+# 6. R4: best variant with shared-parameter shifts. Replace b2 if another variant wins.
+python .\full_quantum_16x16_morton_bond2\run_bond2.py --variant b2 --shifts 0 2 --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --batch-size 64 --phase1-epochs 20 --phase1-lr 2e-3 --phase2-epochs 5 --phase2-lr 2e-4 --phase3-epochs 60 --core-lr 1e-4 --readout-lr 1e-3 --patience 10 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --out-dir .\full_quantum_16x16_morton_bond2\runs\b2_shift02
+
+# 7. Only once, for the final configuration chosen by validation.
+python .\full_quantum_16x16_morton_bond2\evaluate_test.py --checkpoint .\full_quantum_16x16_morton_bond2\runs\b2\full_quantum_mlp_aug_best.pt --data-root .\mnist_data --device cuda --batch-size 64
