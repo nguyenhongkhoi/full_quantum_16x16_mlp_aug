@@ -1,0 +1,5 @@
+# Run from D:\data_system\full_quantum_16x16_mlp_aug
+python .\full_quantum_16x16_2branch_multiscale_mlp16\run_mlp_aug_16x16_multiscale_mlp16.py --models full_quantum --device cuda --seed 0 --split-seed 20260911 --data-root .\mnist_data --fq-batch-size 64 --fq-pretrain-epochs 20 --fq-pretrain-lr 2e-3 --fq-refine-epochs 5 --fq-refine-lr 2e-4 --fq-epochs 60 --fq-core-lr 1e-4 --fq-readout-lr 1e-3 --fq-patience 10 --fq-reupload --aug-degrees 5 --aug-translate 0.05 --out-dir .\full_quantum_16x16_2branch_multiscale_mlp16\runs\run_2branch_multiscale
+
+# Run once after selecting the checkpoint by validation results.
+python .\full_quantum_16x16_2branch_multiscale_mlp16\evaluate_test.py --checkpoint .\full_quantum_16x16_2branch_multiscale_mlp16\runs\run_2branch_multiscale\full_quantum_mlp_aug_best.pt --data-root .\mnist_data --device cuda
