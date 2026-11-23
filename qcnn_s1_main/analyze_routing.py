@@ -26,8 +26,9 @@ import torch
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from common import collect, make_loaders, predictions, summarize
-from models import build_model
+from qcnn import build_model
+from qcnn.data import make_loaders
+from qcnn.evaluation import collect, predictions, summarize
 
 
 def main() -> None:

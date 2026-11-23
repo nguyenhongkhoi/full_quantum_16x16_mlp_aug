@@ -1,3 +1,4 @@
+"""Unitary 1 và 2 qubit học được (U = exp(iH), H Hermite)."""
 from __future__ import annotations
 
 import torch

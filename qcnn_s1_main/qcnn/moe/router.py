@@ -29,10 +29,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from .front import apply_one_qubit, cz_signs, rotation_matrices
-from .unitary import LearnedUnitary1Q, LearnedUnitary2Q
+from ..layers.gates import apply_one_qubit, apply_one_qubit_batched, apply_two_qubit, cz_signs, rotation_matrices, z_expectation
+from ..layers.unitary import LearnedUnitary1Q, LearnedUnitary2Q
+
 
 ROUTERS = ("none", "quantum", "linear", "mlp")
+
+
 ANSATZE = ("se", "rot")
 
 
@@ -54,35 +57,6 @@ def encoding_gates(theta: torch.Tensor, phi: torch.Tensor) -> torch.Tensor:
     top = torch.stack((torch.complex(c, zero), torch.complex(-s, zero)), dim=-1)
     bottom = torch.stack((phase * s, phase * c), dim=-1)
     return torch.stack((top, bottom), dim=-2)
-
-
-def apply_one_qubit_batched(state: torch.Tensor, gates: torch.Tensor, qubit: int, qubits: int) -> torch.Tensor:
-    """state (n, 2^qubits), gates (n, 2, 2): mỗi mẫu một cổng riêng trên qubit này."""
-    view = state.reshape(state.shape[0], 2 ** qubit, 2, 2 ** (qubits - 1 - qubit))
-    return torch.einsum("nab,nibj->niaj", gates, view).reshape(state.shape)
-
-
-def apply_two_qubit(state: torch.Tensor, gate: torch.Tensor, first: int, second: int, qubits: int) -> torch.Tensor:
-    """state (n, 2^qubits), gate (4, 4) trên (first, second); chỉ số cổng = 2*bit(first) + bit(second).
-    Qubit 0 là bit cao nhất của chỉ số trạng thái (như models/front.py)."""
-    if first == second:
-        raise ValueError("two different qubits needed")
-    tensor = state.reshape(state.shape[0], *([2] * qubits))
-    axes = [axis for axis in range(1, qubits + 1) if axis not in (1 + first, 1 + second)]
-    order = [0, *axes, 1 + first, 1 + second]
-    moved = tensor.permute(*order)
-    shape = moved.shape
-    updated = (moved.reshape(-1, 4) @ gate.transpose(0, 1)).reshape(shape)
-    inverse = [0] * len(order)
-    for position, axis in enumerate(order):
-        inverse[axis] = position
-    return updated.permute(*inverse).reshape(state.shape)
-
-
-def z_expectation(state: torch.Tensor, qubit: int, qubits: int) -> torch.Tensor:
-    """state (n, 2^qubits) -> (n,) <Z> của qubit này."""
-    probabilities = (state.abs() ** 2).reshape(state.shape[0], 2 ** qubit, 2, 2 ** (qubits - 1 - qubit))
-    return probabilities[:, :, 0].sum(dim=(1, 2)) - probabilities[:, :, 1].sum(dim=(1, 2))
 
 
 class QuantumRouter(nn.Module):
@@ -182,7 +156,7 @@ def make_router(kind: str, experts: int, grid: Sequence[int], qubits: int, layer
         raise ValueError(f"Unknown router {kind!r}; use one of {ROUTERS}")
     if kind == "none":
         return None
-    # Chỉ rút từ trạng thái ngẫu nhiên CPU tách riêng; không gọi torch.manual_seed (xem models/front.py).
+    # Chỉ rút từ trạng thái ngẫu nhiên CPU tách riêng; không gọi torch.manual_seed (xem qcnn/encoding/quanvolution.py).
     with torch.random.fork_rng(devices=[]):
         if kind == "quantum":
             return QuantumRouter(experts, grid, qubits, layers, ansatz, init_scale)

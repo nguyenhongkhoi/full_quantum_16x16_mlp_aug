@@ -1,6 +1,6 @@
 """Encoder quanvolution KHÔNG có readout cổ điển (--front-readout direct): 100% tham số encoder là góc mạch.
 
-Bản thường (models/front.py, QuantumFront, --front-readout linear): mỗi tầng đo X, Y, Z của 9 qubit cửa sổ 3x3 (27 số)
+Bản thường (qcnn/encoding/quanvolution.py, QuantumFront, --front-readout linear): mỗi tầng đo X, Y, Z của 9 qubit cửa sổ 3x3 (27 số)
 rồi Linear(27, 2) (cổ điển) cộng dư vào (theta, phi) của pixel giữa.
 
 Bản direct: cùng mạch 9 qubit mỗi pixel (cùng code QuantumConvStage.features), nhưng lấy thẳng qubit GIỮA (qubit 4):
@@ -20,7 +20,9 @@ import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
-from .front import PATCH_QUBITS, QuantumConvStage, cz_signs, grid_edges, parse_qconv
+from ..layers.gates import cz_signs, grid_edges
+from .quanvolution import PATCH_QUBITS, QuantumConvStage, parse_qconv
+
 
 CENTER = 4  # qubit giữa của cửa sổ 3x3 (theo hàng)
 

@@ -14,13 +14,13 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from torchvision import transforms
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from common import DATASET_NAMES, DATASETS
-from models import build_model
+from qcnn import build_model
+from qcnn.data import DATASET_NAMES, DATASETS
 
 
 def main() -> None:

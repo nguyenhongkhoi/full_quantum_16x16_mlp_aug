@@ -27,12 +27,15 @@ import torch.nn.functional as F
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from models import MoEQCNN, build_model
-from models.front import QuantumConvStage, rotation_matrices
-from models.front_direct import DirectQuantumFront, bloch_to_angles
-from models.moe_model import bloch, density_from_bloch, mix_logits, observable_index, same_axis_pair_indices
-from models.pauli import PauliFeatures
-from models.router import QuantumRouter, router_parameter_count
+from qcnn import MoEQCNN, build_model
+from qcnn.encoding.quanvolution import QuantumConvStage
+from qcnn.encoding.quanvolution_direct import DirectQuantumFront, bloch_to_angles
+from qcnn.layers.density import bloch, density_from_bloch
+from qcnn.layers.gates import rotation_matrices
+from qcnn.layers.pauli import PauliFeatures
+from qcnn.moe.heads import observable_index, same_axis_pair_indices
+from qcnn.moe.model import mix_logits
+from qcnn.moe.router import QuantumRouter, router_parameter_count
 
 LINHEAD = ROOT.parent / "full_quantum_16x16_level32_qconv_linhead"
 IMAGES = torch.rand(4, 1, 28, 28, generator=torch.Generator().manual_seed(1))

@@ -1,3 +1,6 @@
+"""Mã hóa góc RY cho pixel."""
+from __future__ import annotations
+
 import math
 
 import torch

@@ -1,4 +1,4 @@
-# Prompt mở phiên mới (dự án QCNN, cập nhật 2026-11-21 01:48)
+# Prompt mở phiên mới (dự án QCNN, cập nhật 2026-11-24 01:17)
 
 Dán toàn bộ phần dưới vào phiên mới.
 
@@ -7,7 +7,8 @@ Dán toàn bộ phần dưới vào phiên mới.
 Dự án: QCNN / tensor network cho MNIST 16×16. Hai mảng: (A) continual learning bằng Mammoth (commit e75a491), bài Rotated MNIST (domain-IL, 20 task, 1 epoch mỗi task); (B) MNIST tĩnh, encoder nhỏ (cổ điển hoặc quantum) trước mạch level32, và đọc thêm tầng của cây. Ý tưởng do anh Nguyễn Tùng đề xuất. Trả lời bằng tiếng Việt, ngắn gọn.
 
 ## Đọc trước, theo thứ tự
-0. **Đọc trước tiên** mục "TRẠNG THÁI HIỆN TẠI" ngay dưới đây, rồi các mục SO từ 2026-11-18 đến hết (M1 cuối, N1, S1, đính chính đếm tham số, share-final, folder _sharedgate, G1). Sau đó đọc **`fullquantum_16x16_frontQuan4x3_Moe/`**: `CACH_DEM_THAM_SO.txt`, `PSEUDOCODE_S1.txt`, `README.md`, `command.txt`, `models/moe_model.py`; và **`fullquantum_16x16_frontQuan4x3_Moe_sharedgate/`**: `README.md`, `command.txt`.
+00. **Đọc trước nhất** mục "CẬP NHẬT 2026-11-24: GIT + MAIN" ngay dưới, rồi folder **`qcnn_s1_main/`** (nguồn của branch main): `README.md`, `command.txt`, `plot.md`, `qcnn/moe/model.py`.
+0. **Đọc tiếp** mục "TRẠNG THÁI HIỆN TẠI" ngay dưới đây, rồi các mục SO từ 2026-11-18 đến hết (M1 cuối, N1, S1, đính chính đếm tham số, share-final, folder _sharedgate, G1). Sau đó đọc **`fullquantum_16x16_frontQuan4x3_Moe/`**: `CACH_DEM_THAM_SO.txt`, `PSEUDOCODE_S1.txt`, `README.md`, `command.txt`, `models/moe_model.py`; và **`fullquantum_16x16_frontQuan4x3_Moe_sharedgate/`**: `README.md`, `command.txt`.
 1. `AI_COLLAB_CLAUDE_CODEX.txt` (nhật ký, chỉ ghi nối thêm): các mục từ "Tạo full_quantum_16x16_level32_front" ngày 2026-11-12 14:12 đến hết; quan trọng nhất là các mục ngày 2026-11-14 đến 2026-11-17.
 2. `SO_NGHIEN_CUU_QCNN.txt`: các mục từ "KẾT QUẢ CUỐI qcnn-fusion-level32" đến hết (đứng trước dòng "Mục dưới đây là kế hoạch trước khi đổi hướng."). Quan trọng nhất là các mục từ "Kết quả đầu tiên full_quantum_16x16_level32_qconv" (2026-11-14) trở xuống, nhất là các mục 2026-11-15/16/17 (2c 99,03, enc-linear qconv4x3, linhead, cnn3, thang CNN, tra tài liệu, hướng paper, gói Mammoth, **Mammoth qconv4x3 93,92, router MoE, QMoE, folder Moe, head siêu nhỏ**; 2026-11-18: **M1 98,78 giữa run, H2 ~95, bỏ riêng tương quan cặp / nocorr**).
 2b. **`fullquantum_16x16_frontQuan4x3_Moe/`** (code 2026-11-17, thêm nocorr 2026-11-18; người dùng đã chạy M1, H2, H1+router trên máy train; kết quả lưu `ket_qua/`): `README.md`, `command.txt`, `models/router.py`, `models/moe_model.py`.
@@ -19,14 +20,40 @@ Dự án: QCNN / tensor network cho MNIST 16×16. Hai mảng: (A) continual lear
 
 Sau khi đọc: xác nhận ngắn gọn trạng thái và đang chờ gì. Không chạy gì.
 
-## TRẠNG THÁI HIỆN TẠI (2026-11-21) — đọc trước, thay cho các mục cũ khi mâu thuẫn
+## CẬP NHẬT 2026-11-24: GIT + MAIN (đọc trước, thay cho mọi mục cũ khi mâu thuẫn)
+
+### Kết quả mới
+- **G1** (S1 + `--share-gates`, FREE 7.709): **MAX val 98,88** [NGƯỜI DÙNG BÁO 2026-11-24, chưa CSV, chưa rõ epoch / đã xong chưa / CK]. ĐẠT ngưỡng ≥ 98,80 → G1 có thể thay S1. Dự đoán Claude 98,6–98,9 đúng. Đã ghi SO; chưa ghi TONG_HOP (chờ số cuối + CSV).
+- Người dùng: **"đã chốt model"**. Bản chính trên main vẫn gọi là S1 (99,10); G1/G2 là biến thể cờ trong cùng code.
+
+### GitHub (thay cho cách chép zip)
+- Repo: `https://github.com/nguyenhongkhoi/full_quantum_16x16_mlp_aug`. **Không tạo zip nữa.**
+- **`main`** = gói model chốt, nguồn là folder local **`qcnn_s1_main/`**. Push: `KEEP_README=1 PUSH=1 bash push_branch.sh qcnn_s1_main main "" "" "<msg>"` (hoặc bỏ PUSH rồi `git push origin main`).
+- `archive-main-s1-v1` = main cũ (folder Moe); `archive-all` = toàn bộ workspace (trừ noread/, zip, .pt, dữ liệu; có cả sổ SO, AI_COLLAB, PROMPT); 19 branch theo từng folder cũ (`sharedgate`, `level32-qconv`, `linhead`, `classical-cnn`, `mammoth-full-package`, `old-*`...).
+- `push_branch.sh` (gốc workspace, không thuộc branch nào): dựng commit bằng git plumbing từ 1 folder, không đụng working tree (working tree là workspace nhiều folder, không phải checkout). `.gitignore` gốc + `.git/info/exclude`.
+- **Quy tắc người dùng:** mỗi lần code mới → **branch mới**, tự push, rồi đưa lệnh `git clone -b <branch>` / `git pull` + lệnh chạy đầy đủ cho máy train. Đổi bản chốt thì cập nhật main.
+- **KHÔNG ghi nhận Claude**: không thêm `Co-Authored-By` / "Generated with Claude Code" vào commit hay PR (người dùng chỉ muốn mình là contributor). Đã tắt global trong `~/.claude/settings.json` (`attribution` rỗng, `includeCoAuthoredBy: false`). Đã viết lại lịch sử bỏ trailer ở repo này và repo `quanInspired_ris-noma` (force-push). Trang GitHub còn hiện "Contributors: claude" do cache; nếu 2026-11-25 vẫn còn → đổi default branch qua lại hoặc xóa/tạo lại repo rồi push lại (người dùng tự xóa repo).
+
+### Cấu trúc main (`qcnn_s1_main/`, code 2026-11-24, mới ast.parse + pyflakes, CHƯA chạy test_model/train)
+- Gốc: `train.py`, `evaluate_test.py`, `analyze_routing.py`, `test_model.py`, `plot_all.py`, `plot.md`, `command.txt`, `requirements.txt` (torch 2.7.1+cu126 qua `--extra-index-url`), `README.md`.
+- Package **`qcnn/`** (thay `models/` + `common.py`): `layers/` (unitary, gates, pauli, density, counting) · `encoding/` (preprocessing, angle, quanvolution = front.py cũ, quanvolution_direct) · `core/` (tn_core, reupload, scan) · `moe/` (heads, router, model = MoEQCNN) · `data.py` · `evaluation.py`. Tách bằng AST: 97 định nghĩa giống hệt bản cũ; tên module trong state_dict không đổi → cùng seed khởi tạo y hệt, checkpoint cũ nạp được.
+- Code lấy từ `_sharedgate` (S1 + `--share-gates` + `--share-final`, đủ mọi `--expert-head`, `--router`...).
+- **`--dataset mnist|fashion`** (người dùng cho phép code Fashion): `train.py`, `analyze_routing.py` (đọc từ cfg), `evaluate_test.py` (mặc định đọc từ checkpoint). Fashion giữ aug như MNIST (xoay ±5, dịch ±0,05), cùng split 50k/10k. Data root chung `.\mnist_data`.
+- **`classical_cnn/`**: chép `classical_cnn_16x16` + `--dataset`; tên run tự có tiền tố dataset khi không phải mnist; `run_sweep.ps1 -Dataset -Widths -Lrs -Seed` (ASCII, ParseFile 0 lỗi), mặc định widths `14 20`, `10 21`, `13 18`, `12 18`, `17 25` × lr 3e-3/1e-3/3e-4; data root `..\mnist_data`.
+- **CNN cùng cỡ theo FREE (mới):** S1 9.389 ↔ **`--widths 14 20` (9.378)** (thay `11 21` = 9.571 trước đây) hoặc `10 21` (9.370); G1 7.709 ↔ `13 18` (7.708); G2 7.549 ↔ `12 18` (7.534); M1 14.429 ↔ `17 25` (14.389). Công thức 12a + 9ab + 16b² + 14b + 10.
+- **`plot_all.py`** + **`plot.md`**: 1 lệnh `python .\plot_all.py` quét `.\runs` + `.\classical_cnn\runs`, tách MNIST/Fashion, CNN giữ lr tốt nhất mỗi cỡ (`--all-cnn-lr` để vẽ đủ); hình convergence 2×2, convergence_zoom, acc_vs_params, best_acc (MAX + CK), lr, time, router_<run> mỗi QCNN, summary_<ds>.csv/.md; mỗi hình PNG + PDF vector (pdf.fonttype 42) vào `.\figures`. Tùy chọn `--labels`, `--include/--exclude`, `--add NHAN=THU_MUC`, `--formats`, `--zoom-low`. Đã chạy thử trên CSV đã lưu (S1, M1, G1) trong scratchpad: chạy được.
+- Lỗi đã sửa: `train.py` từng thiếu import `DATASET_NAMES` (NameError khi chạy) — đã sửa trong main ccb732a; nếu người dùng clone trước đó phải `git pull`.
+- `docs/`: `CACH_DEM_THAM_SO.txt` (đường dẫn module đã cập nhật), `PSEUDOCODE_S1.txt`.
+- Sửa code S1 từ nay: sửa trong `qcnn_s1_main/` rồi push main (folder Moe / _sharedgate cũ giữ nguyên, không cần sửa song song nữa trừ khi người dùng còn chạy từ đó).
+
+## TRẠNG THÁI HIỆN TẠI (2026-11-21) — đọc sau mục 2026-11-24, thay cho các mục cũ khi mâu thuẫn
 
 ### Quyết định của người dùng (2026-11-19/20)
 - **Chỉ so với CNN cổ điển cùng cỡ** (cùng runner, cùng split/aug). KHÔNG làm thêm đối chứng (logistic pixel, mạch đóng băng, cnn3 cùng head nhỏ...). Không đề xuất lại.
 - **Tỷ lệ quantum không quan trọng nữa; ưu tiên giảm tổng tham số** để so được với CNN nhỏ hơn mà vẫn ~99%.
 - **S1 là bản chính** (99,10). Nếu G1 ≥ 98,80 thì G1 có thể thay S1 (ít tham số hơn).
 - Hướng bài: "cải thiện con đường quantum ngày càng tốt", không tuyên bố hơn cổ điển hay lợi thế lượng tử. Tiêu đề Claude gợi ý: "Quantum-Routed Mixture of Scan-Order QCNN Experts for Image Classification".
-- **Fashion-MNIST: làm SAU khi chốt model**; chưa code, phải hỏi trước khi code (`--dataset fashion` cho folder Moe/_sharedgate và classical_cnn_16x16).
+- **Fashion-MNIST: ĐÃ CODE 2026-11-24** trong main (`--dataset fashion`), người dùng đã cho phép; chưa chạy.
 
 ### [ĐÍNH CHÍNH QUAN TRỌNG] Cách đếm tham số (2026-11-20)
 - `models/unitary.py` LearnedUnitary1Q/2Q lưu ma trận phức A nhưng U = exp(i(A+A†)/2) → **một nửa tham số thừa** (gradient 0). Bậc tự do thật: unitary 2 qubit **16**, 1 qubit **4** (bỏ pha toàn cục 15/3). Huấn luyện không sai, chỉ đếm sai.
@@ -44,7 +71,7 @@ Tổng S1: 492 + 2.424 + 323 + 6.150 = **9.389 FREE** (bỏ pha 9.135; quantum 3
 | **M1** router quantum | `--expert-head linear` | 14.429 (14.175) | **99,03** (ep ~38) | CSV ep 1–41; router thay được head MLP |
 | N1 nocorr | `--expert-head nocorr` (Linear(120,10)) | 6.869 (6.615) | 98,42 (ep 28) | chưa có số cuối / history đủ |
 | **S1 samebasis (BẢN CHÍNH)** | `--expert-head samebasis` | **9.389** (9.135) | **99,10** (ep 46) = CK | CSV ep 1–46; top1 79,97, uniform 97,63, oracle 96,23; Morton 74% |
-| **G1** S1 + `--share-gates` | folder `_sharedgate` | **7.709** (7.623) | 98,67 (ep 23) = CK, **đang chạy** | CSV ep 1–24; lr chưa giảm; bám sát S1 cùng epoch (−0,12..+0,11) |
+| **G1** S1 + `--share-gates` | folder `_sharedgate` | **7.709** (7.623) | **98,88** [NGƯỜI DÙNG BÁO 2026-11-24] (CSV ep 24: 98,67) | ĐẠT ngưỡng 98,80; chưa CSV cuối |
 | G2 G1 + `--share-final` | folder `_sharedgate` | 7.549 (7.479) | chưa chạy | |
 | S3 S1 + `--share-final` | folder Moe | 8.109 (7.983) | chưa chạy, có thể bỏ | |
 | H1 bloch8 + router / H2 obs10 | | | ~95 | head siêu nhỏ: thất bại |
@@ -85,7 +112,7 @@ Tổng S1: 492 + 2.424 + 323 + 6.150 = **9.389 FREE** (bỏ pha 9.135; quantum 3
 - Người dùng hay tự sửa code trên máy train; khi họ muốn tự sửa thì đưa đoạn code/file đầy đủ để dán, kèm cách kiểm (số tham số in ra).
 - **Người dùng chạy MỌI run MNIST tĩnh với `--dropout 0`** (chỉ tăng khi thấy overfit). Lệnh mới luôn ghi `--dropout 0`.
 - Lệnh có `| Tee-Object -FilePath .\logs\...` cần folder `logs` có sẵn (`New-Item -ItemType Directory -Force -Path .\logs`), nếu không sẽ lỗi DirectoryNotFound.
-- Folder mới hoặc code sửa: tạo lại zip cùng tên (người dùng chép zip sang máy train). Script `.ps1` viết chữ ASCII (PowerShell 5.1 đọc UTF-8 không BOM sai); kiểm bằng `[System.Management.Automation.Language.Parser]::ParseFile`.
+- [CŨ, thay bằng git từ 2026-11-24] Folder mới hoặc code sửa: tạo lại zip cùng tên. **Nay: branch mới + push GitHub, đưa lệnh clone/pull; không ghi nhận Claude trong commit.** Script `.ps1` viết chữ ASCII (PowerShell 5.1 đọc UTF-8 không BOM sai); kiểm bằng `[System.Management.Automation.Language.Parser]::ParseFile`.
 - **Số tham số: luôn báo số FREE** (unitary 16/4, kèm bản bỏ pha 15/3), không dùng số "Total" cũ trong log.
 - Folder `_sharedgate` là bản sao code Moe + `--share-gates`; sửa code chung thì sửa cả hai folder và tạo lại cả hai zip.
 - Người dùng muốn giải thích dễ hiểu, có ví dụ cụ thể; hay hỏi "có mới không": trả lời thẳng, tách rõ phần đã có trong tài liệu và phần có thể mới.
@@ -212,7 +239,7 @@ Cấu hình: `--dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_
 ## Việc tiếp theo khi có số
 1. Ghi ngay vào SO và AI_COLLAB (nguồn, đại lượng, MAX/CK).
 2. So ngưỡng đã chốt; nói rõ dự đoán đúng hay sai.
-3. **Chờ hiện tại (2026-11-21, quan trọng nhất trước):** số cuối **G1** (so ngưỡng 98,80) → có thể G2; **CNN cùng cỡ** `--widths 13 18`, `11 21` / `10 21`, `12 18`, `11 19` (cùng runner); số cuối N1 (ghi TONG_HOP); sau khi chốt model: Fashion-MNIST (hỏi trước khi code), 3 seed cho bản chốt, evaluate_test 1 lần. Danh sách cũ dưới đây phần lớn đã lỗi thời.
+3. **Chờ hiện tại (2026-11-24, quan trọng nhất trước):** người dùng `git pull` main, chạy `test_model.py` trên code mới (package qcnn) → báo lỗi nếu có; CSV + số cuối **G1** (98,88 người dùng báo; ghi TONG_HOP); G2; **CNN cùng cỡ** chạy bằng `classical_cnn/run_sweep.ps1` trong main (`14 20`, `10 21`, `13 18`, `12 18`, `17 25`); **Fashion-MNIST** S1 (+ G1) và CNN cùng cỡ; vẽ bằng `plot_all.py`; 3 seed bản chốt; evaluate_test 1 lần. Danh sách 2026-11-21 cũ: số cuối **G1** (so ngưỡng 98,80) → có thể G2; **CNN cùng cỡ** `--widths 13 18`, `11 21` / `10 21`, `12 18`, `11 19` (cùng runner); số cuối N1 (ghi TONG_HOP); sau khi chốt model: Fashion-MNIST (hỏi trước khi code), 3 seed cho bản chốt, evaluate_test 1 lần. Danh sách cũ dưới đây phần lớn đã lỗi thời.
    Danh sách cũ: **số cuối M1, H1 + router quantum, H2, MAX val L1; sau đó N1 nocorr** (người dùng chạy sau); **Mammoth cnn-17k và deep6p** (cùng máy với qconv4x3 93,92: quyết định ngưỡng) + `mammoth_tasks.csv`/log qconv4x3 (BWT, Forgetting); **thang CNN tĩnh** (cnn17k ba lr: so 2c); **C1 cnn3** (cùng readout); **số cuối 2c** (epoch dừng, MAX/CK cuối → ghi TONG_HOP); **L1 linhead** (mốc so của MoE) rồi D0 analyze_routing; **test_model.py folder Moe**, rồi H1/H2 (head nhỏ, router none) và M1/M2/M4 (router); đối chứng cổ điển cùng head nhỏ (chưa code); số cuối enc-linear qconv4x3 + config.json (pool 4 hay 2); L1 linhead; 2d deep6p tĩnh (dropout 0); số cuối run readout to; 3b Mammoth enc-cnn-deep12p; TN1 số chính xác (1a–1d); `mammoth_tasks.csv` deep12p; history.csv none (98,84); tên run "Best Val Loss 0.184262".
 4. Đề xuất đang chờ người dùng quyết: qconv4x3f (đóng băng), 3 seed cho 2c và đối chứng, ablation ép φ=0, encoder bỏ Linear (lấy thẳng trạng thái qubit giữa, 100% quantum), script phân tích mạch đã train (đưa ô mẫu vào checkpoint 2c). Không nên thêm tầng (qconv4x4) lúc này: ngưỡng ≥ 99,33 mới đáng.
 5. Để sau: multilevel 1a (khi có máy trống); hỏi anh Tùng về encoder và hướng paper (đã đề nghị viết tóm tắt 1 trang); task 6 trùng task 11 (góc 178,62 và 178,88).

@@ -28,8 +28,9 @@ from torch.utils.data import DataLoader
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from common import AUG_INTERPOLATION, collect, make_loaders, seed_all, summarize
-from models import ANSATZE, DEFAULT_OBS, EXPERT_HEADS, FRONT_READOUTS, MIXES, ROUTER_SOURCES, ROUTERS, build_model
+from qcnn import ANSATZE, DEFAULT_OBS, EXPERT_HEADS, FRONT_READOUTS, MIXES, ROUTER_SOURCES, ROUTERS, build_model
+from qcnn.data import AUG_INTERPOLATION, DATASET_NAMES, make_loaders, seed_all
+from qcnn.evaluation import collect, summarize
 
 # ---- in ra console và ghi log ----
 PROGRESS = sys.stdout.isatty()

@@ -1,10 +1,10 @@
 ﻿CÁCH ĐẾM SỐ THAM SỐ - folder fullquantum_16x16_frontQuan4x3_Moe
-Viết 2026-11-20. Code đếm: models/moe_model.py, hàm free_parameter_count và count_parameters().
+Viết 2026-11-20. Code đếm: qcnn/layers/counting.py (free_parameter_count) và qcnn/moe/model.py (count_parameters()).
 
 ================================================================================
 1. VÌ SAO PHẢI ĐẾM LẠI
 ================================================================================
-Mạch dùng UNITARY TỔNG QUÁT HỌC ĐƯỢC (models/unitary.py), không phải cổng xoay với vài góc:
+Mạch dùng UNITARY TỔNG QUÁT HỌC ĐƯỢC (qcnn/layers/unitary.py), không phải cổng xoay với vài góc:
   - lưu một ma trận phức A cỡ d x d  (d = 2 cho cổng 1 qubit, d = 4 cho cổng 2 qubit)
     -> 2 d^2 số thực: 8 (1 qubit), 32 (2 qubit);
   - dùng H = (A + A^dagger) / 2 (Hermite), U = exp(iH).
@@ -22,7 +22,7 @@ THỪA GẤP ĐÔI phần unitary. Việc train không sai, chỉ con số báo 
 ================================================================================
 2. ĐẾM TỪNG KHỐI (mặc định: --front qconv4x3, 3 cây, side-level 32, router quantum 8 qubit)
 ================================================================================
-2.1 Encoder qconv4x3 (models/front.py)                                      cũ    FREE
+2.1 Encoder qconv4x3 (qcnn/encoding/quanvolution.py)                                      cũ    FREE
   3 tầng; mỗi tầng 4 lớp x 9 qubit x 3 góc (RZ RY RZ) = 108 góc                324    324   (quantum)
   readout cổ điển Linear(27, 2) mỗi tầng = 27*2 + 2 = 56; 3 tầng                168    168   (cổ điển)
   -> encoder                                                                   492    492
@@ -30,7 +30,7 @@ THỪA GẤP ĐÔI phần unitary. Việc train không sai, chỉ con số báo 
   Ghi chú: RZ cuối của một lớp có thể giao hoán với CZ và gộp với RZ đầu lớp sau, nên có thể còn dư
   một ít góc; CHƯA trừ phần này.
 
-2.2 Một cây level32 (models/tn_core.py, models/reupload.py)                    cũ    FREE  bỏ pha
+2.2 Một cây level32 (qcnn/core/tn_core.py, qcnn/core/reupload.py)                    cũ    FREE  bỏ pha
   5 tầng conv-pool (256->128->64->32->16->8 qubit); mỗi tầng 2 unitary 2 qubit
   (conv, pool) dùng chung cho mọi cặp: 5 x 2 = 10 unitary 2 qubit               320    160    150
   hệ số re-upload: 8 số (1 mỗi qubit cuối)                                        8      8      8
@@ -42,7 +42,7 @@ THỪA GẤP ĐÔI phần unitary. Việc train không sai, chỉ con số báo 
   -> 3 cây                                                                     4.824  2.424  2.202
   Đo Pauli (276 = 24 Bloch + 252 tương quan) và Bloch tầng 32 (96): KHÔNG có tham số.
 
-2.3 Router quantum (models/router.py, --router quantum, lưới 4x4, 8 qubit, 2 vòng, ansatz se)
+2.3 Router quantum (qcnn/moe/router.py, --router quantum, lưới 4x4, 8 qubit, 2 vòng, ansatz se)
   2 lớp (1 mỗi vòng re-upload); mỗi lớp 8 unitary 1 qubit + 8 unitary 2 qubit:
     2 x (8 x 8 + 8 x 32) = 640 (cũ);  2 x (8 x 4 + 8 x 16) = 320 (FREE);  2 x (8 x 3 + 8 x 15) = 288 (bỏ pha)
   hệ số đọc ra s_e (cổ điển): 3

@@ -1,9 +1,11 @@
+"""Đặc trưng Pauli (X, Y, Z và tương quan cặp) từ ma trận mật độ."""
 from __future__ import annotations
 
 from itertools import combinations
 
 import torch
 from torch import nn
+
 
 _PAIR_AXES = ("x", "y", "z")
 

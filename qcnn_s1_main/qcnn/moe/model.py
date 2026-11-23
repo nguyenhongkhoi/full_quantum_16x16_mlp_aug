@@ -26,8 +26,8 @@ Head mỗi cây (--expert-head), số với 3 cây, side_level 32:
              LayerNorm GELU Dropout Linear(hidden, 10) (P = --projection 10, hidden 16: 11.948). Không phải MoE:
              cần --router none; chỉ có đầu ra soft (không có top1, từng cây).
 
-Readout encoder (--front-readout): "linear" = models/front.py như cũ (Linear(27, 2) mỗi tầng, cộng dư; qconv4x3: 492,
-góc 324); "direct" = models/front_direct.py: lấy thẳng qubit giữa, không tham số cổ điển (qconv4x3: 324); cây nhận
+Readout encoder (--front-readout): "linear" = qcnn/encoding/quanvolution.py như cũ (Linear(27, 2) mỗi tầng, cộng dư; qconv4x3: 492,
+góc 324); "direct" = qcnn/encoding/quanvolution_direct.py: lấy thẳng qubit giữa, không tham số cổ điển (qconv4x3: 324); cây nhận
 ma trận mật độ của qubit giữa.
 
 Router không chặn đường dữ liệu: cả E cây đều nhận đầu ra encoder; router chỉ cho trọng số trộn.
@@ -41,7 +41,6 @@ và bắt đầu với g đều.
 from __future__ import annotations
 
 import math
-from itertools import combinations
 from typing import Dict, Sequence
 
 import torch
@@ -49,210 +48,42 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
-from .encoding import angle_ry_encode
-from .front import front_circuit_parameters, make_front
-from .front_direct import DirectQuantumFront, bloch_to_angles, direct_circuit_parameters
-from .pauli import PauliFeatures
-from .preprocessing import preprocess_full_quantum
-from .reupload import ReuploadQuantumTNCore
+from ..core.reupload import ReuploadQuantumTNCore
+from ..core.scan import SPATIAL_ORDERS, spatial_permutation
+from ..encoding.angle import angle_ry_encode
+from ..encoding.preprocessing import preprocess_full_quantum
+from ..encoding.quanvolution import front_circuit_parameters, make_front
+from ..encoding.quanvolution_direct import DirectQuantumFront, bloch_to_angles, direct_circuit_parameters
+from ..layers.counting import free_parameter_count
+from ..layers.density import bloch, density_from_bloch
+from ..layers.pauli import PauliFeatures
+from .heads import (BRANCH_FEATURES, DEFAULT_OBS, FINAL_QUBITS, NoCorrLinear, NoCorrSmall, ObservableHead, SameAxisLinear,
+                    SliceLinear)
 from .router import ROUTERS, make_router, pooled_cells
-from .unitary import LearnedUnitary1Q, LearnedUnitary2Q
+
 
 TARGET_SIZE = (16, 16)
-FINAL_QUBITS = 8
-PAIRS = FINAL_QUBITS * (FINAL_QUBITS - 1) // 2
-BRANCH_FEATURES = 3 * FINAL_QUBITS + 9 * PAIRS
-SPATIAL_ORDERS = ("row", "column", "morton")
+
+
 NOCORR_SMALL = ("nocorr-z", "nocorr-shared", "nocorr-lowrank")  # thêm 2026-11-19
+
+
 SAME_AXIS = {"samebasis": "XYZ", "zz": "Z"}  # thêm 2026-11-19
+
+
 EXPERT_HEADS = ("linear", "shared", "mlp", "bloch8", "obs10", "fusion", "nocorr") + NOCORR_SMALL + tuple(SAME_AXIS)
+
+
 SIDE_HEADS = ("linear", "shared", "mlp", "fusion", "nocorr") + NOCORR_SMALL + tuple(SAME_AXIS)  # head đo tầng side
+
+
 MIXES = ("logits", "probs")
+
+
 ROUTER_SOURCES = ("encoder", "pixels")
+
+
 FRONT_READOUTS = ("linear", "direct")
-DEFAULT_OBS = ("Z0", "Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z7", "X0", "X4")
-AXES = "XYZ"
-
-
-# ---- thứ tự quét (chép nguyên từ linhead/models/fusion_model.py) ----
-def spatial_permutation(height: int, width: int, order: str) -> torch.Tensor:
-    """Reorder sites without changing pixels; Morton groups dyadic 2D patches, angle<d> scans lines at d degrees."""
-    if order.startswith("angle"):
-        return angled_scan(height, width, float(order[len("angle"):]))
-    shift = 0
-    if order.startswith("morton_shift"):
-        # Morton order of the image shifted cyclically by `shift` pixels in x and y: the same kind of tree, with its
-        # block borders moved. With shift 4 the 4x4 blocks stay, and the middle 8 columns and rows form blocks.
-        shift = int(order[len("morton_shift"):])
-        order = "morton"
-    if order not in {"row", "column", "morton"}:
-        raise ValueError(f"Unknown spatial order: {order}")
-    sites = list(range(height * width))
-    if order == "column":
-        sites.sort(key=lambda i: (i % width, i // width))
-    elif order == "morton":
-        def code(i):
-            y, x = divmod(i, width)
-            y, x = (y + shift) % height, (x + shift) % width
-            return sum(((x >> b) & 1) << (2 * b) |
-                       ((y >> b) & 1) << (2 * b + 1)
-                       for b in range(max(height, width).bit_length()))
-        sites.sort(key=code)
-    return torch.tensor(sites)
-
-
-def angled_scan(height: int, width: int, degrees: float) -> torch.Tensor:
-    """Visit sites along parallel lines at this angle, line by line. Angle 0 is the row order."""
-    cosine, sine = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
-
-    def key(i):
-        y, x = divmod(i, width)
-        x, y = x - (width - 1) / 2, y - (height - 1) / 2
-        return math.floor(y * cosine - x * sine), x * cosine + y * sine, i
-
-    return torch.tensor(sorted(range(height * width), key=key))
-
-
-def bloch(rho: torch.Tensor) -> torch.Tensor:
-    """(batch, qubits, 2, 2) -> (batch, 3 * qubits): all X, then all Y, then all Z. rho = (I + xX + yY + zZ) / 2."""
-    x = 2 * rho[..., 0, 1].real
-    y = -2 * rho[..., 0, 1].imag
-    z = (rho[..., 0, 0] - rho[..., 1, 1]).real
-    return torch.cat((x, y, z), dim=1)
-
-
-def density_from_bloch(vector: torch.Tensor) -> torch.Tensor:
-    """(..., 3) -> (..., 2, 2) complex64: (I + xX + yY + zZ) / 2 (ngược với bloch() ở trên)."""
-    x, y, z = vector.float().unbind(-1)
-    zero = torch.zeros_like(x)
-    r00 = torch.complex((1 + z) / 2, zero)
-    r11 = torch.complex((1 - z) / 2, zero)
-    r01 = torch.complex(x / 2, -y / 2)
-    r10 = torch.complex(x / 2, y / 2)
-    return torch.stack((torch.stack((r00, r01), -1), torch.stack((r10, r11), -1)), -2)
-
-
-def observable_index(term: str, qubits: int = FINAL_QUBITS) -> int:
-    """Vị trí của một quan sát trong đặc trưng PauliFeatures: "Z3" (một qubit) hoặc "X0Z5" (cặp)."""
-    term = term.strip().upper()
-    parts = [(term[i], int(term[i + 1])) for i in range(0, len(term), 2)] if len(term) in (2, 4) else []
-    if not parts or any(axis not in AXES or not 0 <= qubit < qubits for axis, qubit in parts):
-        raise ValueError(f"Bad observable {term!r}: use e.g. Z3 or X0Z5 (axes X/Y/Z, qubits 0-{qubits - 1})")
-    if len(parts) == 1:
-        axis, qubit = parts[0]
-        return AXES.index(axis) * qubits + qubit
-    (axis_i, first), (axis_j, second) = parts
-    if first == second:
-        raise ValueError(f"Bad observable {term!r}: the two qubits must differ")
-    if first > second:
-        (axis_i, first), (axis_j, second) = (axis_j, second), (axis_i, first)
-    pair = list(combinations(range(qubits), 2)).index((first, second))
-    return 3 * qubits + 9 * pair + 3 * AXES.index(axis_i) + AXES.index(axis_j)
-
-
-class ObservableHead(nn.Module):
-    """logit_c = scale_c * <O_c> + bias_c với num_classes quan sát cố định (scale khởi tạo 1, bias 0)."""
-
-    def __init__(self, terms: Sequence[str], num_classes: int):
-        super().__init__()
-        if len(terms) != num_classes:
-            raise ValueError(f"--obs-terms needs exactly {num_classes} observables, got {len(terms)}")
-        self.terms = tuple(terms)
-        self.register_buffer("index", torch.tensor([observable_index(term) for term in terms]), persistent=False)
-        self.scale = nn.Parameter(torch.ones(num_classes))
-        self.bias = nn.Parameter(torch.zeros(num_classes))
-
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
-        return features.index_select(1, self.index) * self.scale + self.bias
-
-
-class SliceLinear(nn.Module):
-    """Linear trên `width` đặc trưng đầu tiên (bloch8: 24 = X, Y, Z của 8 qubit cuối)."""
-
-    def __init__(self, width: int, num_classes: int):
-        super().__init__()
-        self.width = width
-        self.linear = nn.Linear(width, num_classes)
-
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
-        return self.linear(features[:, :self.width])
-
-
-class NoCorrLinear(nn.Module):
-    """nocorr: Linear trên X, Y, Z 8 qubit cuối (24) + tầng side (96), bỏ 252 tương quan cặp -> Linear(120, 10)."""
-
-    def __init__(self, side_features: int, num_classes: int):
-        super().__init__()
-        self.linear = nn.Linear(3 * FINAL_QUBITS + side_features, num_classes)
-
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
-        # features = [24 Bloch | 252 tương quan | side]
-        return self.linear(torch.cat((features[:, :3 * FINAL_QUBITS], features[:, BRANCH_FEATURES:]), dim=1))
-
-
-class NoCorrSmall(nn.Module):
-    """Head nhỏ hơn nocorr (thêm 2026-11-19), vẫn bỏ 252 tương quan cặp.
-
-    side_axes "XYZ": 24 Bloch + 3 * side; "Z": 24 Bloch + chỉ <Z> tầng side (bloch() xếp X hết, Y hết, Z hết -> Z là
-    `side` số cuối). rank 0: Linear(in, 10); rank r > 0: Linear(in, r, không bias) rồi Linear(r, 10) (hạng thấp)."""
-
-    def __init__(self, side_features: int, num_classes: int, side_axes: str = "XYZ", rank: int = 0):
-        super().__init__()
-        if side_axes not in ("XYZ", "Z"):
-            raise ValueError(f"side_axes must be XYZ or Z, got {side_axes!r}")
-        self.side_qubits = side_features // 3
-        self.side_axes = side_axes
-        width = 3 * FINAL_QUBITS + (side_features if side_axes == "XYZ" else self.side_qubits)
-        self.linear = (nn.Linear(width, num_classes) if rank <= 0 else
-                       nn.Sequential(nn.Linear(width, rank, bias=False), nn.Linear(rank, num_classes)))
-
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
-        side = features[:, BRANCH_FEATURES:]
-        if self.side_axes == "Z":
-            side = side[:, 2 * self.side_qubits:]
-        return self.linear(torch.cat((features[:, :3 * FINAL_QUBITS], side), dim=1))
-
-
-def free_parameter_count(module, drop_phase: bool = False) -> int:
-    """Số tham số THẬT (bậc tự do) của module (thêm 2026-11-20).
-
-    LearnedUnitary1Q/2Q lưu ma trận phức A d x d (2 d^2 số thực) nhưng chỉ dùng H = (A + A^dagger)/2, U = exp(iH):
-    phần phản Hermite của A không ảnh hưởng gì (gradient 0). Bậc tự do thật là d^2 (4 cho 1 qubit, 16 cho 2 qubit),
-    d^2 - 1 nếu bỏ pha toàn cục (drop_phase: 3, 15); real_only: d(d-1)/2. Tham số khác đếm như cũ.
-    Module dùng chung (head shared) chỉ đếm một lần."""
-    if module is None:
-        return 0
-    total = 0
-    for sub in module.modules():
-        if isinstance(sub, (LearnedUnitary1Q, LearnedUnitary2Q)):
-            d = sub.raw_real.shape[0]
-            total += d * (d - 1) // 2 if sub.real_only else d * d - (1 if drop_phase else 0)
-        else:
-            total += sum(parameter.numel() for parameter in sub.parameters(recurse=False))
-    return total
-
-
-def same_axis_pair_indices(axes: str) -> list:
-    """Vị trí của tương quan cùng trục A_i A_j (A thuộc `axes`) của 28 cặp trong vector PauliFeatures."""
-    return [observable_index(f"{axis}{i}{axis}{j}") for i, j in combinations(range(FINAL_QUBITS), 2) for axis in axes]
-
-
-class SameAxisLinear(nn.Module):
-    """Head riêng mỗi cây (thêm 2026-11-19), giữ tương quan cùng trục, bỏ tương quan chéo trục.
-
-    samebasis (axes "XYZ"): 24 Bloch + 84 (XX, YY, ZZ của 28 cặp) + side -> Linear(204, 10): đúng các số lấy được
-    từ 3 cấu hình đo toàn cục X, Y, Z (mỗi cấu hình cho mọi A_i và A_i A_j). zz (axes "Z"): 24 + 28 ZZ + side ->
-    Linear(148, 10). Bỏ các tương quan chéo trục (XY, XZ, ...) cần thêm cấu hình đo."""
-
-    def __init__(self, side_features: int, num_classes: int, axes: str):
-        super().__init__()
-        index = list(range(3 * FINAL_QUBITS)) + same_axis_pair_indices(axes) + \
-            list(range(BRANCH_FEATURES, BRANCH_FEATURES + side_features))
-        self.register_buffer("index", torch.tensor(index), persistent=False)
-        self.linear = nn.Linear(len(index), num_classes)
-
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
-        return self.linear(features.index_select(1, self.index))
 
 
 def mix_logits(expert_logits: torch.Tensor, gates: torch.Tensor, mix: str) -> torch.Tensor:

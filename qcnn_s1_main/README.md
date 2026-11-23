@@ -14,16 +14,30 @@ Phân loại ảnh 16×16 (MNIST, Fashion-MNIST) bằng QCNN tensor network vớ
 | G1 = S1 + `--share-gates` | 7.709 | 98,88 | chưa chạy |
 | CNN cùng cỡ (`--widths 14 20`) | 9.378 | chưa chạy | chưa chạy |
 
-Mọi run dùng seed 0, aug (xoay ±5°, dịch ±0,05) và dropout 0. Số tham số đếm theo cách FREE: unitary 2 qubit có 16 bậc tự do, 1 qubit có 4; cách đếm chi tiết ở `CACH_DEM_THAM_SO.txt`.
+Mọi run dùng seed 0, aug (xoay ±5°, dịch ±0,05) và dropout 0. Số tham số đếm theo cách FREE: unitary 2 qubit có 16 bậc tự do, 1 qubit có 4; cách đếm chi tiết ở `docs/CACH_DEM_THAM_SO.txt`.
 
-**Các file:**
-- `requirements.txt`: cài torch CUDA 12.6.
-- `command.txt`: lệnh cài đặt và toàn bộ lệnh chạy (S1, G1/G2, CNN, Fashion-MNIST, test).
-- `train.py`, `models/`, `common.py`: code QCNN S1, có đủ tùy chọn (`python train.py --help`).
-- `test_model.py`: kiểm tra số tham số và so mạch với mô phỏng ma trận đầy đủ.
-- `evaluate_test.py`: chạy test chính thức (chỉ một lần cho bản chốt).
-- `analyze_routing.py`: phân tích router trên tập validation.
-- `classical_cnn/`: CNN cổ điển (`run_cnn.py`, `run_sweep.ps1`, `tong_hop.py`, `evaluate_test.py`).
-- `PSEUDOCODE_S1.txt`: pseudocode toàn bộ pipeline (tiếng Anh).
+**Cấu trúc:**
+```
+train.py            train QCNN (python train.py --help: mọi tùy chọn, --dataset mnist|fashion)
+evaluate_test.py    test chính thức (chỉ một lần cho bản chốt)
+analyze_routing.py  phân tích router trên validation
+test_model.py       kiểm tra số tham số, so mạch với mô phỏng ma trận đầy đủ
+plot_all.py         vẽ mọi biểu đồ so sánh (PNG + PDF vector) -> xem plot.md
+command.txt         lệnh cài đặt và toàn bộ lệnh chạy
+requirements.txt    torch CUDA 12.6
+qcnn/
+  layers/     unitary.py (unitary học được), gates.py (cổng statevector), pauli.py (đặc trưng Pauli),
+              density.py (Bloch <-> ma trận mật độ), counting.py (đếm tham số FREE)
+  encoding/   preprocessing.py (28x28 -> 16x16), angle.py (mã hóa góc), quanvolution.py (encoder qconv),
+              quanvolution_direct.py (encoder không readout cổ điển)
+  core/       tn_core.py (cây QCNN: conv-pool, khối 8 qubit strongly entangling), reupload.py (re-upload),
+              scan.py (thứ tự quét row / column / morton)
+  moe/        heads.py (head mỗi cây: samebasis, nocorr, ...), router.py (router lượng tử / cổ điển),
+              model.py (MoEQCNN: ghép encoder + cây + head + router)
+  data.py     MNIST / Fashion-MNIST, split 50k/10k, augmentation
+  evaluation.py  gom logit mọi chế độ suy luận, tóm tắt
+classical_cnn/  CNN cổ điển cùng cỡ (run_cnn.py, run_sweep.ps1, tong_hop.py, evaluate_test.py)
+docs/           CACH_DEM_THAM_SO.txt (cách đếm tham số), PSEUDOCODE_S1.txt (pseudocode, tiếng Anh)
+```
 
 Các phiên bản cũ và toàn bộ thí nghiệm nằm ở các branch khác: `archive-all` chứa toàn bộ workspace, `archive-main-s1-v1` là main cũ.

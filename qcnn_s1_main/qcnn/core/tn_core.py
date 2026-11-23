@@ -1,3 +1,4 @@
+"""Lõi cây QCNN tensor network: khối conv-pool, tầng gộp, khối strongly entangling cuối, QuantumTNCore."""
 from __future__ import annotations
 
 import math
@@ -6,7 +7,7 @@ from typing import Dict, List, Tuple
 import torch
 from torch import nn
 
-from .unitary import LearnedUnitary1Q, LearnedUnitary2Q
+from ..layers.unitary import LearnedUnitary1Q, LearnedUnitary2Q
 
 
 def _pure_to_density(qubits: torch.Tensor) -> torch.Tensor:
