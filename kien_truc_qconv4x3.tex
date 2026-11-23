@@ -1,0 +1,368 @@
+% Mô tả chi tiết kiến trúc front_qconv4x3_proj10 (level32 + encoder quantum qconv4x3), MNIST 16x16.
+% Viết từ mã nguồn full_quantum_16x16_level32_qconv (models/preprocessing.py, front.py, encoding.py,
+% fusion_model.py, tn_core.py, reupload.py, unitary.py, pauli.py; run_level32_front.py).
+% Biên dịch: pdflatex kien_truc_qconv4x3.tex (2 lần để có mục lục). Overleaf: compiler pdfLaTeX.
+% Hình: nếu có hinh_kien_truc_qconv4x3.pdf (biên dịch từ hinh_kien_truc_qconv4x3.tex) cùng thư mục thì được chèn tự động.
+\documentclass[11pt,a4paper]{article}
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,array}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\ket}[1]{\lvert #1 \rangle}
+\newcommand{\bra}[1]{\langle #1 \rvert}
+\newcommand{\expval}[1]{\langle #1 \rangle}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\Tr}{\operatorname{Tr}}
+\newcommand{\figfile}{hinh_kien_truc_qconv4x3.pdf}
+\newcommand{\chenhinh}[2]{%
+  \IfFileExists{\figfile}{%
+    \begin{figure}[htbp]\centering
+      \includegraphics[page=#1,width=\textwidth,height=0.42\textheight,keepaspectratio]{\figfile}
+      \caption{#2}
+    \end{figure}}{%
+    \begin{center}\fbox{\parbox{0.9\textwidth}{\small (Hình: biên dịch \texttt{hinh\_kien\_truc\_qconv4x3.tex}
+    rồi đặt \texttt{hinh\_kien\_truc\_qconv4x3.pdf} cạnh file này; trang #1: #2)}}\end{center}}}
+
+\title{Kiến trúc \texttt{front\_qconv4x3\_proj10}:\\
+QCNN cây tensor network với encoder quanvolution lượng tử,\\ MNIST $16\times16$}
+\author{}
+\date{15/11/2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Mô hình phân loại ảnh MNIST thu nhỏ về $16\times16$ gồm ba phần: (i) encoder lượng tử \emph{qconv4x3}:
+ba tầng mạch 9 qubit trượt trên cửa sổ $3\times3$ của từng pixel, đo các kỳ vọng Pauli một qubit và cập nhật
+dư hai góc mã hóa $(\theta,\phi)$ của pixel; (ii) ba cây QCNN tensor network, mỗi cây nhận 256 qubit (một qubit mỗi
+pixel) theo một thứ tự quét khác nhau, nén về 8 qubit và đo thêm tầng 32 qubit; (iii) head cổ điển nhỏ.
+Tổng $17.264$ tham số, trong đó $5.148$ ($29{,}8\%$) là tham số mạch. Mọi đại lượng lượng tử được tính chính xác
+bằng mô phỏng; mô hình mô phỏng cổ điển hiệu quả, nên không có tuyên bố lợi thế lượng tử.
+\end{abstract}
+
+\tableofcontents
+
+% =====================================================================================================
+\section{Tổng quan}
+
+\begin{equation*}
+\underbrace{\text{ảnh } 28{\times}28}_{\text{MNIST}}
+\xrightarrow{\text{aug, resize}} \bm{x}\in[0,1]^{256}
+\xrightarrow[\text{3 tầng}]{\text{qconv4x3}} (\bm{\theta},\bm{\phi})\in\RR^{256\times2}
+\xrightarrow{\text{mã hóa}} \bigotimes_{p=1}^{256}\ket{q_p}
+\xrightarrow[\text{3 cây}]{\text{QCNN}} \bm{f}_t\in\RR^{372}
+\xrightarrow{\text{head}} \text{10 logit}.
+\end{equation*}
+
+\begin{table}[htbp]\centering
+\caption{Số tham số (khớp số runner in ra).}
+\begin{tabular}{lrrl}
+\toprule
+Phần & Tham số & Loại & Ghi chú \\
+\midrule
+Encoder qconv4x3: góc mạch & 324 & lượng tử & $3$ tầng $\times$ $4$ lớp $\times$ $9$ qubit $\times$ $3$ góc \\
+Encoder qconv4x3: readout & 168 & cổ điển & $3 \times$ Linear$(27,2)$ \\
+3 cây QCNN & 4.824 & lượng tử & $3\times1.608$ \\
+Head & 11.948 & cổ điển & $3\times3.750 + 698$ \\
+\midrule
+\textbf{Tổng} & \textbf{17.264} & & lượng tử $5.148$ ($29{,}8\%$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\chenhinh{1}{Luồng dữ liệu tổng quát. Xanh: mạch lượng tử (mô phỏng chính xác); cam: cổ điển.}
+
+% =====================================================================================================
+\section{Dữ liệu và tiền xử lý}
+\label{sec:pre}
+
+\subsection{Dữ liệu}
+MNIST train $60.000$ ảnh, chia cố định (hoán vị với \texttt{split-seed} $20260911$) thành $50.000$ ảnh train và
+$10.000$ ảnh validation. Bộ test chính thức $10.000$ ảnh chỉ dùng một lần cho mô hình chốt cuối.
+Batch $64$.
+
+\subsection{Chuyển ảnh thành tensor xám}
+Mỗi ảnh MNIST là ảnh xám 8 bit $I\in\{0,\dots,255\}^{28\times28}$. \texttt{ToTensor} chia cho 255:
+\begin{equation}
+X = I/255 \in [0,1]^{1\times28\times28},
+\end{equation}
+một kênh, $0$ là nền đen, $1$ là nét trắng; không chuẩn hóa trung bình/độ lệch.
+Hàm \texttt{rgb\_to\_grayscale} trong \texttt{preprocessing.py} chỉ có tác dụng với ảnh 3 kênh
+($0{,}2989R+0{,}5870G+0{,}1140B$); với MNIST (1 kênh) nó giữ nguyên.
+
+\subsection{Tăng cường dữ liệu (chỉ khi train)}
+Trước \texttt{ToTensor}, trên ảnh $28\times28$: \texttt{RandomAffine} với góc xoay ngẫu nhiên đều trong
+$[-5^\circ,5^\circ]$, dịch ngẫu nhiên tối đa $\pm0{,}05$ kích thước ảnh mỗi chiều ($\pm1{,}4$ pixel),
+nội suy song tuyến, nền điền $0$. Ảnh validation và test không tăng cường.
+
+\subsection{Thu nhỏ về $16\times16$}
+Trong mô hình (\texttt{preprocess\_full\_quantum}), ảnh được nội suy song tuyến
+(\texttt{F.interpolate}, \texttt{align\_corners=False}) về $16\times16$. Pixel đích $(i,j)$,
+$i,j\in\{0,\dots,15\}$, lấy mẫu tại tọa độ nguồn
+\begin{equation}
+u_i = (i+\tfrac12)\cdot\tfrac{28}{16}-\tfrac12 = 1{,}75\,i+0{,}375, \qquad v_j = 1{,}75\,j+0{,}375,
+\end{equation}
+và
+\begin{equation}
+\tilde X_{ij} = \sum_{a\in\{\lfloor u_i\rfloor,\lfloor u_i\rfloor+1\}}\ \sum_{b\in\{\lfloor v_j\rfloor,\lfloor v_j\rfloor+1\}}
+(1-|u_i-a|)(1-|v_j-b|)\,X_{ab}.
+\end{equation}
+Sau đó kẹp về $[0,1]$ và làm phẳng theo hàng:
+\begin{equation}
+x_p = \min(1,\max(0,\tilde X_{ij})), \qquad p = 16\,i + j \in\{0,\dots,255\}.
+\end{equation}
+Kết quả là vector $\bm{x}\in[0,1]^{256}$, mỗi phần tử là độ xám của một pixel.
+
+% =====================================================================================================
+\section{Encoder lượng tử qconv4x3}
+\label{sec:enc}
+
+\subsection{Trạng thái của encoder}
+Mỗi pixel $p$ mang hai số thực $(\theta_p,\phi_p)$, khởi đầu
+\begin{equation}
+\theta^{(0)}_p = x_p, \qquad \phi^{(0)}_p = 0.
+\end{equation}
+Encoder gồm $S=3$ tầng nối tiếp; tầng $s$ biến $(\bm\theta^{(s-1)},\bm\phi^{(s-1)})$ thành
+$(\bm\theta^{(s)},\bm\phi^{(s)})$. Mỗi tầng có tham số riêng, nhưng trong một tầng mọi pixel dùng chung tham số
+(giống một lớp tích chập).
+
+\chenhinh{2}{Một tầng encoder: cửa sổ $3\times3$, mạch 9 qubit 4 lớp, đo Pauli, readout và cập nhật dư.}
+
+\subsection{Cửa sổ $3\times3$}
+Với pixel $p$ ở hàng $i$, cột $j$, cửa sổ gồm 9 pixel, đánh số theo hàng:
+\begin{equation}
+\mathcal N(p) = \{(i+r,\, j+c) : r,c\in\{-1,0,1\}\}, \qquad k = 3(r+1)+(c+1)\in\{0,\dots,8\},
+\end{equation}
+pixel giữa là $k=4$. Pixel nằm ngoài ảnh nhận $\theta=\phi=0$ (đệm 0, tương ứng qubit $\ket0$).
+
+\subsection{Mã hóa 9 qubit}
+Pixel thứ $k$ của cửa sổ thành một qubit
+\begin{equation}
+\ket{e(\theta_k,\phi_k)} = R_Z(\pi\phi_k)R_Y(\pi\theta_k)\ket0
+\simeq \cos\tfrac{\pi\theta_k}{2}\ket0 + e^{i\pi\phi_k}\sin\tfrac{\pi\theta_k}{2}\ket1
+\label{eq:enc}
+\end{equation}
+($\simeq$: bằng nhau sai khác pha toàn cục). Đây là tham số hóa chuẩn của một qubit thuần trên mặt cầu Bloch,
+với góc cực $\pi\theta$ và góc phương vị $\pi\phi$; vector Bloch là
+$(\sin\pi\theta\cos\pi\phi,\ \sin\pi\theta\sin\pi\phi,\ \cos\pi\theta)$.
+Pixel đen ($\theta=0$) là cực bắc $\ket0$, pixel trắng ($\theta=1$) là cực nam $\ket1$.
+Trạng thái đầu vào của cửa sổ là tích
+\begin{equation}
+\ket{\psi_p^{\text{in}}} = \bigotimes_{k=0}^{8} \ket{e(\theta_k,\phi_k)} \in \CC^{2^9}.
+\end{equation}
+
+\subsection{Mạch biến phân 4 lớp}
+Phép quay một qubit tổng quát (góc Euler $Z$-$Y$-$Z$):
+\begin{equation}
+R(a,b,c) = R_Z(a)\,R_Y(b)\,R_Z(c) =
+\begin{pmatrix}
+\cos\frac b2\, e^{-i(a+c)/2} & -\sin\frac b2\, e^{-i(a-c)/2}\\[2pt]
+\sin\frac b2\, e^{i(a-c)/2} & \cos\frac b2\, e^{i(a+c)/2}
+\end{pmatrix}.
+\end{equation}
+Lớp vướng víu là tích các cổng CZ trên 12 cạnh của lưới $3\times3$
+(6 cạnh ngang, 6 cạnh dọc, không có cạnh chéo):
+\begin{equation}
+E = \{(0,1),(1,2),(3,4),(4,5),(6,7),(7,8),(0,3),(3,6),(1,4),(4,7),(2,5),(5,8)\},
+\qquad
+\mathrm{CZ}_E \ket{b_0\dots b_8} = (-1)^{\sum_{(j,k)\in E} b_j b_k}\ket{b_0\dots b_8}.
+\end{equation}
+Mạch của tầng $s$, với $L=4$ lớp và góc $\alpha^{(s)}_{\ell,k}=(a,b,c)$ riêng cho từng lớp $\ell$ và qubit $k$:
+\begin{equation}
+U^{(s)} = \prod_{\ell=4}^{1}\Big[\mathrm{CZ}_E \cdot \bigotimes_{k=0}^{8} R\big(\alpha^{(s)}_{\ell,k}\big)\Big],
+\qquad
+\ket{\psi_p^{\text{out}}} = U^{(s)}\ket{\psi_p^{\text{in}}}.
+\end{equation}
+(Tích viết từ phải sang trái: lớp 1 tác dụng trước.) Số góc mỗi tầng: $4\times9\times3=108$,
+khởi tạo ngẫu nhiên đều trong $[-\pi,\pi]$.
+
+\paragraph{Ý nghĩa của CZ (ví dụ tính bằng code).}
+Khi mọi góc quay bằng 0 và chỉ có một lớp CZ, kỳ vọng $X$ của qubit giữa là
+\begin{equation}
+\expval{X_4} = \sin(\pi\theta_4)\cos(\pi\phi_4)\prod_{j\in\{1,3,5,7\}}\cos(\pi\theta_j),
+\end{equation}
+tức là qubit giữa ``nghe'' được bốn hàng xóm nối với nó: hàng xóm tối nhân $+1$, sáng nhân $-1$, xám $0{,}5$ nhân $0$.
+Với $\theta_4=0{,}5$: hàng xóm đều tối cho $\expval{X_4}=+1$; chỉ hàng xóm trái sáng cho $-1$; hàng xóm trái
+xám cho $0$ (tính bằng \texttt{QuantumConvStage.features}). Nét dọc và nét ngang (hai hàng xóm sáng) đều cho
+$+1$; sau 4 lớp với góc khác 0, hai trường hợp này cho vector đặc trưng khác nhau (khoảng cách $1{,}46$ với góc
+ngẫu nhiên lúc khởi tạo). Phép quay đổi trục, cho phép thông tin pha do CZ tạo ra hiện lên ở các phép đo,
+và làm mạch phân biệt được hướng.
+
+\subsection{Đặc trưng đo}
+Từ trạng thái ra, tính chính xác kỳ vọng Pauli một qubit của cả 9 qubit:
+\begin{equation}
+\bm g_p = \big(\expval{X_k},\expval{Y_k},\expval{Z_k}\big)_{k=0}^{8} \in [-1,1]^{27},
+\qquad \expval{O_k} = \bra{\psi_p^{\text{out}}} O_k \ket{\psi_p^{\text{out}}}.
+\end{equation}
+Trong code (\texttt{bloch\_of\_qubits}): với $\rho^{(k)}_{01}=\sum a_{\cdot0\cdot}\,\overline{a_{\cdot1\cdot}}$
+(tổng trên các biên độ có qubit $k$ bằng 0 và bằng 1),
+$\expval{X_k}=2\operatorname{Re}\rho^{(k)}_{01}$, $\expval{Y_k}=-2\operatorname{Im}\rho^{(k)}_{01}$,
+$\expval{Z_k}=\sum|a_{\cdot0\cdot}|^2-\sum|a_{\cdot1\cdot}|^2$. Không đo tương quan nhiều qubit.
+Trên phần cứng thật cần 3 cấu hình đo (cơ sở $Z$; $X$ qua Hadamard; $Y$ qua $S^\dagger$ rồi Hadamard),
+mỗi cấu hình nhiều lần đo để ước lượng.
+
+\subsection{Readout và cập nhật dư}
+Một lớp tuyến tính dùng chung cho mọi pixel (như tích chập $1\times1$):
+\begin{equation}
+\begin{pmatrix}\Delta\theta_p\\ \Delta\phi_p\end{pmatrix} = W^{(s)}\bm g_p + \bm b^{(s)},
+\qquad W^{(s)}\in\RR^{2\times27},\ \bm b^{(s)}\in\RR^2\ \ (56 \text{ tham số}),
+\end{equation}
+\begin{equation}
+\theta^{(s)}_p = \theta^{(s-1)}_p + \Delta\theta_p, \qquad \phi^{(s)}_p = \phi^{(s-1)}_p + \Delta\phi_p.
+\end{equation}
+Lý do cần lớp này: mỗi pixel phải được mã hóa lại thành \emph{một} qubit thuần, tức đúng hai số $(\theta,\phi)$,
+trong khi phép đo cho 27 số; lớp tuyến tính học tổ hợp nào của 27 số là có ích.
+$W^{(s)},\bm b^{(s)}$ khởi tạo bằng 0, nên lúc bắt đầu train encoder là ánh xạ đồng nhất và toàn mô hình trùng với
+level32 không encoder. Lớp này không trộn các pixel với nhau; việc trộn hàng xóm do mạch đảm nhiệm.
+
+\subsection{Ba tầng và vùng nhìn}
+Tầng $s$ dùng $(\bm\theta^{(s-1)},\bm\phi^{(s-1)})$ đã cập nhật làm đầu vào. Giữa các tầng là đo rồi mã hóa lại:
+không có vướng víu nối giữa các cửa sổ hay giữa các tầng. Vùng nhìn của mỗi pixel tăng
+$3\times3 \to 5\times5 \to 7\times7$. Từ tầng 2, $\phi$ khác 0 nên mã hóa dùng toàn mặt cầu Bloch.
+Mỗi tầng $108+56=164$ tham số; ba tầng $492$. Mỗi ảnh cần $256\times3=768$ mạch 9 qubit; mô phỏng statevector
+$2^9=512$ biên độ; khi train dùng gradient checkpoint (tính lại trạng thái khi lan truyền ngược).
+
+Đầu ra encoder: $\theta_p=\theta^{(3)}_p$, $\phi_p=\phi^{(3)}_p$, $p=0,\dots,255$; $\theta$ không bị kẹp.
+
+% =====================================================================================================
+\section{Mã hóa vào cây và thứ tự quét}
+
+\subsection{256 qubit lá}
+Mỗi pixel thành một qubit theo cùng công thức \eqref{eq:enc}:
+\begin{equation}
+\ket{q_p} = \cos\tfrac{\pi\theta_p}{2}\ket0 + e^{i\pi\phi_p}\sin\tfrac{\pi\theta_p}{2}\ket1,
+\qquad \rho_p = \ket{q_p}\bra{q_p}.
+\end{equation}
+256 qubit ở trạng thái tích. Không có encoder thì $\theta_p=x_p$, $\phi_p=0$: qubit chỉ phụ thuộc một pixel và nằm
+trên nửa đường tròn $Y=0$ của mặt cầu Bloch; có encoder thì phụ thuộc vùng $7\times7$ và dùng toàn mặt cầu.
+
+\subsection{Ba thứ tự quét}
+Cùng 256 qubit được đưa vào ba cây, mỗi cây sắp lá theo một hoán vị $\pi_t$ của các pixel:
+\begin{itemize}[nosep]
+\item hàng: $p = 16i+j$ (thứ tự gốc);
+\item cột: sắp theo $(j, i)$;
+\item Morton (đường chữ Z): sắp theo mã xen bit
+$m(i,j) = \sum_{b=0}^{3}\big(j_b\,2^{2b} + i_b\,2^{2b+1}\big)$, với $i_b, j_b$ là bit thứ $b$ của $i$ và $j$.
+\end{itemize}
+Cây ghép từng cặp lá liên tiếp, nên một qubit ở tầng có $n$ qubit đại diện cho $256/n$ pixel liên tiếp theo thứ tự
+quét: với Morton đó là các khối $1\times2$, $2\times2$, $2\times4$, $4\times4$, $4\times8$; với quét hàng là các dải
+$1\times2$, $1\times4$, $1\times8$, $1\times16$, $2\times16$.
+
+% =====================================================================================================
+\section{Cây QCNN tensor network (mỗi cây $1.608$ tham số)}
+
+\chenhinh{3}{Một cây: 5 tầng conv-pool, đo tầng 32, re-upload, strongly-entangling 8 qubit, đặc trưng Pauli.}
+
+\subsection{Unitary học được}
+Mọi unitary của cây được tham số hóa bằng hàm mũ của ma trận Hermite:
+\begin{equation}
+U = \exp(iH), \qquad H = \tfrac12\big(A + A^\dagger\big),\qquad A \in \CC^{d\times d},
+\end{equation}
+với $d=2$ (8 số thực) hoặc $d=4$ (32 số thực); phần thực và ảo của $A$ khởi tạo $\mathcal N(0,\,0{,}01^2)$,
+nên mọi unitary bắt đầu gần đơn vị.
+
+\subsection{Năm tầng conv-pool: $256\to128\to64\to32\to16\to8$}
+Ở tầng $\ell=1,\dots,5$, một cặp unitary 2 qubit $(U_c^{(\ell)},U_p^{(\ell)})$ (64 tham số) dùng chung cho mọi cặp:
+\begin{equation}
+\rho^{(\ell)}_j = \Tr_2\Big[ V_\ell\,\big(\rho^{(\ell-1)}_{2j}\otimes\rho^{(\ell-1)}_{2j+1}\big)\,V_\ell^\dagger \Big],
+\qquad V_\ell = U_p^{(\ell)}U_c^{(\ell)},
+\end{equation}
+với $\rho^{(0)}_j$ là 256 lá theo thứ tự quét và $\Tr_2$ là lấy vết riêng phần trên qubit thứ hai.
+Vì qubit thứ hai bị lấy vết ngay, các qubit trong cùng tầng luôn độc lập: trạng thái của tầng là tích các ma trận
+mật độ $2\times2$, và vector Bloch của từng qubit là toàn bộ thông tin của tầng.
+
+\subsection{Đo tầng 32 (\texttt{side-level 32})}
+Sau tầng $\ell=3$ còn 32 qubit; lấy vector Bloch của từng qubit:
+\begin{equation}
+\bm s_t = \big(\Tr[\rho^{(3)}_j X],\ \Tr[\rho^{(3)}_j Y],\ \Tr[\rho^{(3)}_j Z]\big)_{j=0}^{31} \in [-1,1]^{96}.
+\end{equation}
+
+\subsection{Re-upload trên 8 qubit cuối}
+Qubit cuối $q\in\{0,\dots,7\}$ đại diện cho 32 lá liên tiếp $B_q$. Lấy góc trung bình của các lá đó
+(từ độ lớn biên độ) và một hệ số học được $s_q$ (khởi tạo 0, 8 tham số):
+\begin{equation}
+\bar\vartheta_q = \frac{1}{32}\sum_{p\in B_q} 2\operatorname{atan2}\big(|\sin\tfrac{\pi\theta_p}{2}|,\,|\cos\tfrac{\pi\theta_p}{2}|\big),
+\qquad
+\rho^{(5)}_q \leftarrow R_Y(s_q\bar\vartheta_q)\,\rho^{(5)}_q\,R_Y(s_q\bar\vartheta_q)^\dagger .
+\end{equation}
+
+\subsection{Strongly-entangling trên 8 qubit}
+Ghép 8 qubit thành ma trận mật độ đầy đủ $\rho = \bigotimes_{q=0}^{7}\rho^{(5)}_q \in \CC^{256\times256}$.
+Bốn lớp $m=0,\dots,3$, mỗi lớp: một unitary 1 qubit $u^{(m)}_q$ trên mỗi qubit (8 tham số mỗi cái), rồi 8 unitary
+2 qubit $W^{(m)}_q$ trên cặp $(q,\ (q+r_m)\bmod 8)$ với khoảng cách $r_m = m+1$ (32 tham số mỗi cái):
+\begin{equation}
+\rho \leftarrow \Big(\prod_{q} W^{(m)}_{q,\,q+r_m}\Big)\Big(\bigotimes_q u^{(m)}_q\Big)\,\rho\,
+\Big(\bigotimes_q u^{(m)}_q\Big)^\dagger\Big(\prod_{q} W^{(m)}_{q,\,q+r_m}\Big)^\dagger .
+\end{equation}
+Mỗi lớp $8\times8+8\times32=320$ tham số; 4 lớp $1.280$. Chỉ ở đây các qubit mới vướng víu với nhau.
+
+\subsection{Đặc trưng Pauli}
+\begin{equation}
+\bm f_t = \Big( \big(\Tr[\rho\,\sigma^a_q]\big)_{a\in\{X,Y,Z\},\,q}\ ,\ \big(\Tr[\rho\,\sigma^a_q\sigma^b_{q'}]\big)_{a,b\in\{X,Y,Z\},\,q<q'} \Big)
+\in [-1,1]^{24+252} = [-1,1]^{276}.
+\end{equation}
+Mỗi cây cho $[\bm f_t;\bm s_t]\in\RR^{372}$. Tham số mỗi cây: $5\times64 + 8 + 1.280 = 1.608$.
+
+% =====================================================================================================
+\section{Head cổ điển ($11.948$ tham số)}
+Với mỗi cây $t\in\{\text{hàng},\text{cột},\text{Morton}\}$:
+\begin{equation}
+\bm h_t = \mathrm{Dropout}\Big(\mathrm{GELU}\big(\mathrm{LN}\big(W_t[\bm f_t;\bm s_t]+\bm b_t\big)\big)\Big) \in \RR^{10},
+\qquad W_t\in\RR^{10\times372}\quad(3.750 \text{ tham số kể cả LN}).
+\end{equation}
+Gộp:
+\begin{equation}
+\bm z = [\bm h_{\text{hàng}};\bm h_{\text{cột}};\bm h_{\text{Morton}}]\in\RR^{30},\qquad
+\text{logit} = W_2\,\mathrm{Dropout}\Big(\mathrm{GELU}\big(\mathrm{LN}(W_1\bm z+\bm b_1)\big)\Big)+\bm b_2 \in\RR^{10},
+\end{equation}
+$W_1\in\RR^{16\times30}$, $W_2\in\RR^{10\times16}$ ($698$ tham số). Dropout $p=0$ trong các run đã chạy.
+
+% =====================================================================================================
+\section{Huấn luyện}
+\begin{itemize}[nosep]
+\item Hàm mất mát cross-entropy trên logit; Adam, learning rate $10^{-3}$, weight decay $0$, batch 64.
+\item ReduceLROnPlateau theo val loss: nhân $0{,}5$ sau 3 epoch không giảm, tối thiểu $10^{-6}$.
+\item Tối đa 50 epoch; dừng sớm sau 10 epoch val loss không giảm. Seed 0.
+\item Lưu checkpoint val acc cao nhất (MAX) và val loss thấp nhất (CK). Chọn mô hình chỉ bằng validation.
+\item Thời gian trên RTX 4090: khoảng $1.350$ s/epoch khi chạy một mình.
+\end{itemize}
+
+% =====================================================================================================
+\section{Kết quả hiện có (validation, seed 0)}
+\begin{table}[htbp]\centering
+\caption{MAX val acc (\%). Một seed; chênh dưới $0{,}3$ điểm chưa đủ kết luận. Số có dấu * là giữa run.}
+\begin{tabular}{lrr}
+\toprule
+Mô hình & Tham số & MAX val \\
+\midrule
+level32, không encoder & 19.118 & 98,84 \\
+level32 + encoder CNN deep12p (cửa sổ $7\times7$) & 18.418 & 99,14 \\
+level32 + qconv2x2 (cửa sổ $5\times5$) & 16.992 & $\approx$98,8 \\
+\textbf{level32 + qconv4x3 (mô hình này)} & \textbf{17.264} & \textbf{99,03}* \\
+qconv4x3 + AvgPool + Linear (bỏ cây) & 822 & 95,77* \\
+CNN cổ điển cnn5k & 5.578 & 99,11 \\
+\bottomrule
+\end{tabular}
+\end{table}
+Còn thiếu: đối chứng encoder CNN cùng cỡ \texttt{deep6p} (17.272), thay cây bằng CNN cổ điển cùng cỡ
+\texttt{enc-cnn qconv4x3} (17.238), encoder đóng băng \texttt{qconv4x3f}, thêm seed, test chính thức.
+
+% =====================================================================================================
+\section{Ghi chú}
+\begin{itemize}[nosep]
+\item Mọi kỳ vọng được tính chính xác (không lấy mẫu, không nhiễu). Encoder là các mạch 9 qubit độc lập; trong cây
+các qubit độc lập giữa các tầng, chỉ 8 qubit cuối vướng víu. Do đó mô hình mô phỏng cổ điển hiệu quả.
+\item Mã hóa góc một qubit mỗi pixel theo $\cos\frac{\pi x}{2}, \sin\frac{\pi x}{2}$ đã dùng trong
+Stoudenmire \& Schwab (2016); mã hóa hai góc mỗi qubit tương tự ``dense angle encoding'' (LaRose \& Coyle, 2020);
+mạch trượt trên ô ảnh rồi đo tương tự quanvolution (Henderson và cộng sự, 2019). Cần kiểm lại trích dẫn trước khi
+dùng.
+\end{itemize}
+
+\end{document}
