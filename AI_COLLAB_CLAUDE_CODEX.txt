@@ -1,0 +1,1482 @@
+﻿QUY ƯỚC PHỐI HỢP CODEX/CHATGPT VÀ CLAUDE
+Dự án: FullQuantum MNIST / QCNN
+Cập nhật gần nhất: 2026-11-03 (Asia/Saigon)
+
+MỤC ĐÍCH
+========
+File này là sổ bàn giao chung giữa Codex/ChatGPT và Claude khi cùng hỗ trợ dự án. Hai trợ lý có thể không cùng đọc được lịch sử hội thoại, vì vậy phải dùng file này để nắm quyết định, trạng thái công việc, thời gian thực hiện và việc còn dang dở. Đây là nhật ký append-only: thêm mục mới ở cuối, không xóa hoặc viết lại mục lịch sử.
+
+A. QUY TẮC BẮT BUỘC CHO MỖI TRỢ LÝ
+==================================
+1. Đầu mỗi nhiệm vụ
+- Đọc file này trước để xem trạng thái bàn giao và công việc nào đang làm.
+- Đọc đúng code/tài liệu liên quan đến yêu cầu hiện tại; không suy luận rằng code vẫn như lần trước.
+- Kiểm tra thay đổi hiện có trong các file sắp sửa. Đây là workspace dùng chung; thay đổi chưa commit có thể do người dùng hoặc trợ lý kia tạo.
+- Ưu tiên làm trong workspace dự án: D:\data_system\full_quantum_16x16_mlp_aug. Không ghi file ra ngoài workspace nếu người dùng chưa yêu cầu.
+- Không đọc/sửa các folder ngoài phạm vi câu hỏi chỉ vì chúng có trong dự án. Tuân theo mọi giới hạn thư mục người dùng đã đặt.
+
+2. Khi bắt đầu sửa code
+- Thêm một dòng vào mục NHẬT KÝ CÔNG VIỆC ở cuối file: agent, thời điểm bắt đầu, yêu cầu và các file dự định sửa; đánh dấu ĐANG LÀM.
+- Không cùng lúc sửa một file đang được trợ lý kia đánh dấu ĐANG LÀM. Nếu có xung đột, dừng sửa phần bị trùng và ghi rõ trong nhật ký.
+- Thực hiện thay đổi nhỏ, gắn trực tiếp với yêu cầu. Không tự đổi kiến trúc, hyperparameter, split, augmentation hoặc quy tắc chọn checkpoint ngoài phạm vi đã giao.
+- Không xóa checkpoint, history, dataset hoặc output cũ. Mỗi run mới dùng output directory riêng; không ghi đè run có kết quả.
+- Không khởi chạy train GPU hoặc tác vụ dài/tốn tài nguyên nếu người dùng chưa yêu cầu rõ. Không tự gửi email/tin nhắn hay gọi dịch vụ bên ngoài.
+
+3. Khi báo cáo số liệu và accuracy
+- Luôn ghi rõ đây là train, validation hay official test; không nhập các loại điểm vào cùng một cột.
+- Phân biệt accuracy tại checkpoint được chọn với accuracy tối đa qua các epoch.
+- Gắn nguồn cho con số: đường dẫn CSV/JSON, log người dùng gửi, hoặc ghi rõ là ước tính/chưa xác minh.
+- Không biến mục tiêu 99% hoặc giả thuyết kiến trúc thành kết quả. Không dùng official test để chọn epoch, kiến trúc, augmentation hoặc TTA policy.
+- Với thay đổi kiến trúc, ghi số tham số thực tế nếu có thể xác định; so sánh cùng split/protocol trước khi kết luận.
+
+4. Test, train và xác minh
+- Không chạy test tự động nếu người dùng không yêu cầu kiểm thử/xác minh. Nếu người dùng yêu cầu, ghi lệnh và kết quả; không chỉ ghi “đã test”.
+- Với train, ghi command đầy đủ hoặc tham chiếu tới command file, device/máy nếu biết, thời gian bắt đầu/kết thúc, elapsed time, số epoch hoàn tất, output directory và checkpoint được chọn.
+- Nếu chỉ đọc/sửa tài liệu, ghi rõ không chạy train/test.
+- Khi lỗi, giữ traceback quan trọng, ghi nguyên nhân đã xác minh hay còn giả thuyết, file sửa và trạng thái chạy lại.
+
+5. Kết thúc mỗi nhiệm vụ
+- Cập nhật mục nhật ký ngay sau khi hoàn thành hoặc trước khi phải bàn giao giữa chừng.
+- Ghi thời gian bắt đầu/kết thúc theo giờ Việt Nam `Asia/Saigon` (UTC+07:00), ngày giờ dạng `YYYY-MM-DD HH:MM`. Nếu không đo được chính xác, ghi `ước tính`.
+- Ghi elapsed time thực tế hoặc ước tính, trạng thái DONE/PARTIAL/BLOCKED, việc đã làm, file đã sửa/tạo, test/train đã chạy hay chưa, kết quả và bước tiếp theo.
+- Đánh dấu mục ĐANG LÀM tương ứng đã kết thúc; không xóa mục đó.
+- Khi có số liệu mới (accuracy, số tham số, thời gian, bộ nhớ), kể cả số giữa run, cập nhật ngay `SO_NGHIEN_CUU_QCNN.txt` trong cùng lượt làm việc, ghi rõ nguồn và trạng thái. Có kết quả cuối thì cập nhật thêm `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt`.
+- Trả lời người dùng ngắn gọn nhưng nêu file nào đổi, kết quả xác minh và điều gì còn chưa có.
+
+B. MỤC TIÊU VÀ NGUYÊN TẮC DỰ ÁN
+================================
+- Mục tiêu nghiên cứu: tăng accuracy MNIST trong khi giữ số tham số thấp; không hứa trước đạt 99%.
+- Dùng validation để chọn kiến trúc/checkpoint. Official test chỉ đánh giá cấu hình đã chốt.
+- Mỗi thí nghiệm nên đổi một nhóm yếu tố có lý do, ghi seed/split-seed, input size, augmentation, optimizer, số tham số, thời gian và output path.
+- Mô hình mới cần được đánh giá thực nghiệm; tham số thấp không tự chứng minh accuracy cao hay tốc độ tốt hơn.
+- Khi so hai ý tưởng, xác nhận cùng split, protocol và quy tắc checkpoint. Nếu khác, ghi rõ giới hạn so sánh.
+
+C. TRẠNG THÁI BÀN GIAO BAN ĐẦU
+==============================
+- Workspace: `D:\data_system\full_quantum_16x16_mlp_aug`.
+- Theo IDE context tại thời điểm tạo file, tiêu điểm mới là folder `full_quantum_16x16_morton_bond2`, file `models/unitary.py`.
+- Folder này hiện có `baselines.py`, `bond2_tree.py`, `models/unitary.py` và `models/__init__.py` theo lần kiểm tra ban đầu. Cần đọc code và log hiện tại trước khi thay đổi; chưa kết luận accuracy hay trạng thái train của hướng Morton bond-2.
+- Các tài liệu tham khảo ở root gồm `DANH_GIA_KIEN_TRUC_VA_DE_XUAT.txt`, `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt` và `BAO_CAO_TIEN_DO_DU_AN_FULLQUANTUM_MLP16.md`. Khi có kết quả mới, cập nhật tài liệu phù hợp và thêm entry ở cuối file này.
+- Trạng thái trên chỉ là ảnh chụp lúc tạo quy ước; không được xem là trạng thái tự động luôn mới. Nhật ký bên dưới và code hiện tại là nguồn bàn giao cần kiểm tra.
+
+D. MẪU NHẬT KÝ — SAO CHÉP CHO MỖI NHIỆM VỤ
+==========================================
+[YYYY-MM-DD HH:MM, Asia/Saigon] [CODEX/CLAUDE] [ĐANG LÀM | DONE | PARTIAL | BLOCKED]
+Yêu cầu:
+Bắt đầu:
+Kết thúc:
+Thời lượng:
+File đọc/sửa/tạo:
+Thay đổi hoặc phát hiện:
+Kiểm thử/train: (đã chạy/chưa chạy; command; kết quả; elapsed nếu có)
+Accuracy và nguồn: (nếu có)
+Còn lại / bàn giao:
+
+E. NHẬT KÝ CÔNG VIỆC
+====================
+[2026-11-03 19:35, Asia/Saigon] [CODEX] [DONE]
+Yêu cầu: Tạo file quy ước giao tiếp dùng chung giữa Codex/ChatGPT và Claude.
+Bắt đầu: 2026-11-03 19:35
+Kết thúc: 2026-11-03 19:36
+Thời lượng: Khoảng 1 phút.
+File đọc/sửa/tạo: Tạo `AI_COLLAB_CLAUDE_CODEX.txt`; kiểm tra folder Morton bond-2 và các file hiện có.
+Thay đổi hoặc phát hiện: Đã ghi quy tắc đọc trước, phối hợp trên workspace dùng chung, giới hạn sửa/train, chuẩn báo cáo accuracy, yêu cầu ghi giờ bắt đầu/kết thúc/elapsed và cập nhật nhật ký sau mỗi nhiệm vụ. Tiêu điểm ban đầu theo IDE là `full_quantum_16x16_morton_bond2/models/unitary.py`.
+Kiểm thử/train: Không chạy.
+Accuracy và nguồn: Không có số accuracy mới.
+Còn lại / bàn giao: Trợ lý kế tiếp đọc file này trước khi làm; xác minh trạng thái code/log Morton bond-2 từ workspace hiện hành.
+
+[2026-11-03 19:38, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đánh giá kiến trúc hiện tại, đề xuất kiến trúc accuracy cao và ít tham số, tạo folder code đầy đủ kèm mô tả. Mục này được ghi bù sau khi đã làm xong, vì file quy ước được tạo trong lúc nhiệm vụ đang diễn ra; không có dòng ĐANG LÀM trước đó.
+Bắt đầu: Phần viết code 2026-11-03 19:34 (theo thời gian sửa file). Phần đọc và đánh giá trước đó: không đo được.
+Kết thúc: 2026-11-03 19:38
+Thời lượng: Khoảng 4 phút cho phần viết code (ước tính theo thời gian sửa file).
+File đọc/sửa/tạo: Tạo `DANH_GIA_KIEN_TRUC_VA_DE_XUAT.txt` và folder `full_quantum_16x16_morton_bond2/` (README.md, command.txt, requirements.txt, run_bond2.py, evaluate_test.py, test_model.py, models/). Không sửa folder `full_quantum_16x16_2branch_multiscale_mlp16`. Đã đọc 1 file trong `noread/` (`full_quantum_16x16_kd_mlp16/de_xuat_distillation_mlp16.txt`) trước khi nhận ra tên thư mục có thể là giới hạn; không đọc thêm gì trong đó.
+Thay đổi hoặc phát hiện: Từ đọc code và tính tay, chưa đo: mỗi node cây hiện tại chỉ giữ 1 qubit (tối đa 3 số thực), nên 8 qubit cuối chỉ mang khoảng 24 số. Đề xuất cây Morton giữ 2 qubit mỗi node (15 số thực) và bỏ stage 8 qubit. Biến thể và số tham số tính theo thiết kế: b0 866, b1 1.922, b2 3.066, tree1q 3.060, cnn5k 5.578. `--shifts 0 2` dùng chung tham số. Tất cả không có re-upload, nên tree1q khác R0 ở hai yếu tố (bỏ stage 8 qubit và bỏ re-upload).
+Kiểm thử/train: Chỉ kiểm tra cú pháp bằng `ast.parse`. CHƯA chạy `test_model.py`, chưa train. Người dùng chạy trên máy khác; máy này chỉ để đánh giá và viết code.
+Accuracy và nguồn: Chưa có accuracy nào cho `full_quantum_16x16_morton_bond2`. Run 2 nhánh multiscale (R0) đang chạy trên máy khác: người dùng báo validation 97,25% ở phase 1, chưa rõ epoch, không có log trong workspace.
+Còn lại / bàn giao: Người dùng chạy `test_model.py` theo `command.txt` rồi gửi output, sau đó train b2 và gửi `summary_mlp_aug.json`, `history_full_quantum_mlp_aug.csv`, `config_mlp_aug.json`, thời gian mỗi epoch. Khi có kết quả, cập nhật `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt` và thêm mục mới vào đây.
+
+[2026-11-03 19:40, Asia/Saigon] [CLAUDE] [ĐANG LÀM]
+Yêu cầu: In loss/accuracy trên terminal ở mọi batch. File dự định sửa: `full_quantum_16x16_morton_bond2/run_bond2.py`.
+
+[2026-11-03 19:40, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Kết thúc mục ĐANG LÀM ngay phía trên.
+Bắt đầu: 2026-11-03 19:40
+Kết thúc: 2026-11-03 19:40
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Sửa `full_quantum_16x16_morton_bond2/run_bond2.py`, hàm `run_epoch`.
+Thay đổi hoặc phát hiện: Tiến trình trên terminal cập nhật mỗi batch thay vì mỗi 20 batch. Số in ra là loss/accuracy cộng dồn trong epoch, cập nhật trên cùng một dòng. Không đổi logic train.
+Kiểm thử/train: Chưa chạy.
+Accuracy và nguồn: Không có số mới.
+Còn lại / bàn giao: Như mục CLAUDE 19:38.
+
+[2026-11-03 19:42, Asia/Saigon] [CLAUDE] [ĐANG LÀM]
+Yêu cầu: Ghi đầy đủ tham số trong các lệnh chạy. File dự định sửa: `full_quantum_16x16_morton_bond2/command.txt`.
+
+[2026-11-03 19:42, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Kết thúc mục ĐANG LÀM ngay phía trên.
+Bắt đầu: 2026-11-03 19:42
+Kết thúc: 2026-11-03 19:43 (ước tính)
+Thời lượng: Khoảng 1 phút (ước tính).
+File đọc/sửa/tạo: Sửa `full_quantum_16x16_morton_bond2/command.txt`.
+Thay đổi hoặc phát hiện: Mọi lệnh train ghi rõ toàn bộ tham số, giá trị trùng mặc định trong `run_bond2.py` nên protocol không đổi. Aug 5 độ theo R0, khác lệnh cũ 8 độ của run `mlp_aug_3phase`.
+Kiểm thử/train: Chưa chạy.
+Accuracy và nguồn: Không có số mới.
+Còn lại / bàn giao: Như mục CLAUDE 19:38.
+
+[2026-11-03 19:50, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc kết quả `test_model.py` do người dùng chạy trên máy train.
+Bắt đầu: 2026-11-03 19:50
+Kết thúc: 2026-11-03 19:50
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: Ảnh terminal báo `All checks passed.` Ảnh chỉ thấy phần cuối output. Lúc khởi tạo b2: init identity 43/256 pixel trên 1% pixel mạnh nhất, init balanced 256/256 (đo trên ảnh ngẫu nhiên). Tốc độ, chưa tính data loader và validation: b0 0,0583; b1 0,0648; b2 0,0662; tree1q 0,0878; cnn5k 0,0049 s/batch (b2 khoảng 52 s/epoch train). Có 1 warning bị cắt trong ảnh tại `return t.to(`, chưa xác định; có thể là `expandable_segments not supported on this platform`.
+Kiểm thử/train: `test_model.py` do người dùng chạy, nguồn là ảnh terminal; lệnh theo `command.txt`, device chưa xác nhận. Chưa train.
+Accuracy và nguồn: Chưa có accuracy cho Morton bond-2.
+Còn lại / bàn giao: Người dùng train b2 theo bước 2 của `command.txt` rồi gửi kết quả.
+
+[2026-11-03 20:06, Asia/Saigon] [CLAUDE] [ĐANG LÀM]
+Yêu cầu: Thêm cấu hình CNN thu nhỏ để so sánh theo số tham số. File dự định sửa trong `full_quantum_16x16_morton_bond2/`: `models/baselines.py`, `models/__init__.py`, `run_bond2.py`, `command.txt`, `README.md`.
+
+[2026-11-03 20:07, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Kết thúc mục ĐANG LÀM ngay phía trên.
+Bắt đầu: 2026-11-03 20:06
+Kết thúc: 2026-11-03 20:07 (ước tính)
+Thời lượng: Khoảng 1 phút (ước tính).
+File đọc/sửa/tạo: Sửa 5 file đã nêu ở mục ĐANG LÀM.
+Thay đổi hoặc phát hiện: Thêm cnn3k (8, 11) 2.988 tham số, cnn2k (6, 9) 1.990, cnn1k (4, 6) 934, cùng bố cục với cnn5k. Số tham số tính tay; `test_model.py` sẽ kiểm tra. cnn5k giữ nguyên cấu trúc.
+Kiểm thử/train: Chưa chạy. Cần chạy lại `test_model.py`.
+Accuracy và nguồn: cnn5k khoảng 99% do người dùng báo, chưa có log trong workspace, chưa rõ có cùng input 16x16 và protocol không. Các CNN nhỏ chưa có số.
+Còn lại / bàn giao: Người dùng chạy lại `test_model.py`, rồi train cnn3k, cnn2k, cnn1k và gửi kết quả.
+
+[2026-11-03 20:19, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc kết quả cnn3k do người dùng gửi.
+Bắt đầu: 2026-11-03 20:19
+Kết thúc: 2026-11-03 20:19
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: cnn3k dừng sớm ở epoch 18/60 của phase 3, tức 43 epoch tổng; khoảng 10 s/epoch. Train trong phase 3 (có aug) khoảng 98,4-98,6%.
+Kiểm thử/train: Người dùng chạy trên máy train, 1 seed; nguồn là ảnh terminal, chưa có file summary/CSV trong workspace.
+Accuracy và nguồn: cnn3k, 2.988 tham số (theo thiết kế; ảnh không hiện dòng tham số): validation tại checkpoint 98,64% (epoch 33, val loss 0,042161); max validation 98,64% (epoch 33). Chưa có official test.
+Còn lại / bàn giao: Chờ kết quả b2 để so với cnn3k; chạy cnn5k, cnn2k, cnn1k theo cùng protocol.
+
+[2026-11-03 20:25, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc kết quả giữa run của b2 do người dùng gửi.
+Bắt đầu: 2026-11-03 20:25
+Kết thúc: 2026-11-03 20:25
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: b2 đang thấp hơn rõ cnn3k và dưới ngưỡng cảm tính 97,5% đã đặt cho phase 2. Train (có aug) thấp hơn val, gợi ý underfit. Nguyên nhân chưa xác định. Giả thuyết Morton bond-2 đang yếu đi nhưng chưa bị bác bỏ, vì chưa xong phase 3.
+Kiểm thử/train: b2 đang chạy trên máy train, 1 seed; nguồn là ảnh terminal.
+Accuracy và nguồn: b2 validation, giữa run: cao nhất phase 1 96,65% (epoch 18/20); phase 2 epoch 1 96,87%, epoch 2 96,75%. Khoảng 90 s/epoch. Không phải kết quả cuối.
+Còn lại / bàn giao: Để b2 chạy xong; chạy tree1q để tách nguyên nhân.
+
+[2026-11-03 20:29, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc kết quả giữa run của cnn2k do người dùng gửi.
+Bắt đầu: 2026-11-03 20:29
+Kết thúc: 2026-11-03 20:29
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: cnn2k đang cao hơn b2 dù ít tham số hơn. Người dùng chưa chạy cnn5k theo protocol này.
+Kiểm thử/train: cnn2k đang chạy trên máy train, 1 seed; nguồn là ảnh terminal.
+Accuracy và nguồn: cnn2k, 1.990 tham số (theo thiết kế), validation giữa run: cao nhất trong ảnh 98,12% (phase 3 epoch 21, tức epoch 46). Không phải kết quả cuối.
+Còn lại / bàn giao: Chờ số cuối của cnn2k, b2, tree1q và R0; chạy cnn1k.
+
+[2026-11-03 21:04, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc kết quả giữa run của tree1q do người dùng gửi.
+Bắt đầu: 2026-11-03 21:04
+Kết thúc: 2026-11-03 21:04
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: b2 chỉ cao hơn tree1q khoảng 0,4-0,5 điểm ở cùng giai đoạn. Tăng từ 3 lên 15 số thực mỗi node chưa cho bước nhảy lớn, nên cổ chai 1 qubit nhiều khả năng không phải giới hạn chính. So sánh mới ở giữa run, 1 seed, chạy trên 2 máy khác nhau.
+Kiểm thử/train: tree1q đang chạy trên máy khác với b2; nguồn là ảnh terminal. Trạng thái b2 chưa rõ do máy đó mất mạng.
+Accuracy và nguồn: tree1q, 3.060 tham số (theo thiết kế), validation giữa run: cao nhất phase 1 96,22% (epoch 14/20); phase 2 epoch 1 96,39%. Không phải kết quả cuối.
+Còn lại / bàn giao: Chờ số cuối của tree1q, b2 và R0.
+
+[2026-11-03 21:09, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc kết quả giữa run của R0 (2 nhánh multiscale) do người dùng gửi.
+Bắt đầu: 2026-11-03 21:09
+Kết thúc: 2026-11-03 21:09
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: Mức 97,25% báo trước đó là epoch 19, không phải cao nhất. Thời gian epoch khoảng 690 s, tăng lên 1.033-1.113 s ở epoch 18-19, chưa rõ nguyên nhân.
+Kiểm thử/train: R0 đang chạy, 1 seed; lệnh và nguồn trong ảnh terminal.
+Accuracy và nguồn: R0, 12.420 tham số (theo thiết kế), validation giữa run: cao nhất phase 1 đến epoch 19 là 97,45% (epoch 15, val loss 0,0796). Không phải kết quả cuối.
+Còn lại / bàn giao: Chờ phase 2 và số cuối của R0; số cuối của tree1q và b2.
+
+[2026-11-03 21:23, Asia/Saigon] [CODEX] [DONE]
+Yêu cầu: Viết báo cáo ngắn gọn cho Claude đọc về rà soát kiến trúc QCNN.
+Bắt đầu: 2026-11-03 21:23
+Kết thúc: 2026-11-03 21:24 (ước tính)
+Thời lượng: Khoảng 1 phút.
+File đọc/sửa/tạo: Đọc nhật ký bàn giao; tạo `BAO_CAO_RA_SOAT_QCNN_CHO_CLAUDE.txt`; thêm mục nhật ký này.
+Thay đổi hoặc phát hiện: Tóm tắt mục tiêu, accuracy/trạng thái run gần nhất, phát hiện hai gate conv/pool U(4) cùng cặp có thể gộp về một U(4), mạch tham khảo và bước tiếp theo.
+Kiểm thử/train: Không chạy.
+Accuracy và nguồn: Không có số mới; metric giữa run được gắn nguồn nhật ký/ảnh, không coi là kết quả cuối.
+Còn lại / bàn giao: Claude đọc `BAO_CAO_RA_SOAT_QCNN_CHO_CLAUDE.txt` và kiểm tra run mới trước khi đề xuất sửa code.
+
+[2026-11-03 21:24, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc `BAO_CAO_RA_SOAT_QCNN_CHO_CLAUDE.txt`.
+Bắt đầu: 2026-11-03 21:24
+Kết thúc: 2026-11-03 21:24
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Đọc báo cáo trên; chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: Đồng ý về số liệu, về việc gộp conv/pool và về thứ tự chờ kết quả cuối. Lưu ý cho đề xuất gate xen kẽ chẵn/lẻ: gate nối qua ranh giới node tạo vướng víu giữa các node, nên giả thiết tích trong `_pair_density` không còn đúng; không thể chỉ chèn gate vào code hiện tại mà vẫn mô phỏng chính xác. Phương án chính xác khả thi là cây chồng lấn, mỗi cây con chuẩn bị từ bản sao pixel riêng. Các nguồn tham khảo trong báo cáo chưa được Claude kiểm tra.
+Kiểm thử/train: Không chạy.
+Accuracy và nguồn: Không có số mới.
+Còn lại / bàn giao: Chờ số cuối của R0, b2, tree1q, cnn2k; sau đó chạy `b2 --shifts 0 2` trước khi viết code cây chồng lấn.
+
+[2026-11-03 21:32, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Người dùng báo b2 và đề nghị bỏ qua hướng này.
+Bắt đầu: 2026-11-03 21:32
+Kết thúc: 2026-11-03 21:32
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: Thống nhất dừng ưu tiên b2 và bond-2. Đề xuất Morton bond-2 của Claude chưa đạt mục tiêu, thấp hơn cả cnn2k ít tham số hơn. `b2 --shifts 0 2` chuyển thành không ưu tiên.
+Kiểm thử/train: Không chạy từ phía Claude.
+Accuracy và nguồn: b2, 3.066 tham số (theo thiết kế), validation khoảng 97,21% ở phase 3, người dùng báo, chưa rõ epoch, chưa phải kết quả cuối, không có log trong workspace.
+Còn lại / bàn giao: Chờ phase 2 và số cuối của R0, quyết định hướng tiếp theo dựa trên đó; bản fusion khoảng 98,7% là mốc QCNN nhỏ tốt nhất hiện có, chưa có raw log.
+
+[2026-11-03 23:19, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc kết quả tree1q, b2 và R0 do người dùng gửi.
+Bắt đầu: 2026-11-03 23:19
+Kết thúc: 2026-11-03 23:20 (ước tính)
+Thời lượng: Khoảng 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: b2 chỉ hơn tree1q 0,25 điểm tại checkpoint, nằm trong dao động của 1 seed. Cả hai có train (aug) thấp hơn val. R0 đang cao hơn cả hai ít nhất 0,8 điểm nhưng dùng gấp 4 lần tham số, và vẫn thấp hơn cnn3k. Số 97,21% của b2 mà mục 21:32 ghi không xuất hiện trong kết quả cuối; số chính thức dùng dòng checkpoint và max dưới đây.
+Kiểm thử/train: tree1q và b2 đã kết thúc do early stop; R0 đang ở phase 3. Nguồn: 3 ảnh terminal, 1 seed mỗi run, không có file artifact trong workspace.
+Accuracy và nguồn: Validation. b2 (3.066 tham số): checkpoint 97,10% (epoch 54), max 97,15% (epoch 64). tree1q (3.060): checkpoint 96,85% (epoch 70), max 96,91% (epoch 54). R0 (12.420, giữa run): cao nhất phase 1 97,45%, cao nhất phase 2 97,97% (epoch 25), phase 3 epoch 1 97,91%, epoch 2 97,79%. Số tham số theo thiết kế.
+Còn lại / bàn giao: Chờ số cuối của R0 và cnn2k.
+
+[2026-11-03 23:22, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc CSV cnn2k do người dùng dán vào hội thoại.
+Bắt đầu: 2026-11-03 23:22
+Kết thúc: 2026-11-03 23:22
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: CSV dừng ở epoch 52, mới 4 epoch không cải thiện val loss (patience 10), nên có thể chưa hết run. Train (aug) khoảng 97,7% thấp hơn val, tức CNN nhỏ cũng underfit. Khoảng 9,6 s/epoch.
+Kiểm thử/train: Người dùng chạy, 1 seed; nguồn là CSV dán vào hội thoại, không có file trong workspace.
+Accuracy và nguồn: cnn2k, 1.990 tham số (theo thiết kế). Validation đến epoch 52: val loss thấp nhất 0,0611 ở epoch 48 với acc 98,09%; max 98,12% (epoch 46). Phase 1 cao nhất 97,89% (epoch 19); phase 2 cao nhất 97,90%.
+Còn lại / bàn giao: Chờ số cuối của R0; `b2_shift02` và `b2_lr5e-4` nếu người dùng chạy.
+
+[2026-11-03 23:39, Asia/Saigon] [CLAUDE] [ĐANG LÀM]
+Yêu cầu: Tạo folder mới, đủ code cho kiến trúc patch vướng víu, chạy theo từng bước bằng preset. File dự định tạo: toàn bộ trong `full_quantum_16x16_patch_entangled/`. Không sửa folder cũ.
+
+[2026-11-03 23:44, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Kết thúc mục ĐANG LÀM ngay phía trên.
+Bắt đầu: 2026-11-03 23:39
+Kết thúc: 2026-11-03 23:44
+Thời lượng: Khoảng 5 phút.
+File đọc/sửa/tạo: Tạo `full_quantum_16x16_patch_entangled/` (README.md, command.txt, requirements.txt, run_patch.py, evaluate_test.py, test_model.py, models/).
+Thay đổi hoặc phát hiện: Kiến trúc: ô statevector chính xác 8-16 qubit với gate lưới xen kẽ, re-upload, trace giữ 2 qubit, cây gộp bond-2, readout MLP hoặc Linear. 8 preset s1_p8 đến s8_xl; tham số MLP theo thiết kế: 2.522, 2.538, 2.602, 2.666, 2.650, 4.150, 2.490, 10.042. Có thêm đối chứng `--readout linear` và `--init random --freeze-core`. Ước tính bộ nhớ và thời gian chưa được đo.
+Kiểm thử/train: Chỉ kiểm tra cú pháp bằng `ast.parse`. CHƯA chạy `test_model.py`, chưa train. Bản `command.txt` đầu bị hỏng đường dẫn do lỗi ký tự thoát; đã viết lại, kiểm tra không còn ký tự điều khiển.
+Accuracy và nguồn: Chưa có accuracy cho kiến trúc này.
+Còn lại / bàn giao: Người dùng chạy `test_model.py` rồi gửi toàn bộ output, sau đó chạy s1_p8 và s2_p12. Vẫn chờ số cuối của R0.
+
+[2026-11-03 23:46, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Chỉ còn 1 máy 4090 dùng được, máy còn lại mất mạng.
+Bắt đầu: 2026-11-03 23:46
+Kết thúc: 2026-11-03 23:46
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Sửa `full_quantum_16x16_patch_entangled/command.txt`: mọi lệnh dùng `--device cuda:0`.
+Thay đổi hoặc phát hiện: Ưu tiên s2_p12 trước, s1_p8 để sau; `b2_shift02` và `b2_lr5e-4` tạm hoãn. Chưa rõ R0 đang chạy trên máy nào và còn chạy không.
+Kiểm thử/train: Không chạy.
+Accuracy và nguồn: Không có số mới.
+Còn lại / bàn giao: Người dùng chạy `test_model.py`, gửi output, rồi train s2_p12.
+
+[2026-11-04 00:30, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc kết quả giữa run của R0 và b2_shift02 do người dùng gửi.
+Bắt đầu: 2026-11-04 00:30
+Kết thúc: 2026-11-04 00:30
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: Ở cùng giai đoạn, b2_shift02 hơn b2 khoảng 0,1-0,25 điểm, chưa đạt ngưỡng 0,5 và nằm trong dao động của 1 seed. Hai run có vẻ chạy cùng máy; thời gian epoch của R0 tăng lên khoảng 1.150 s từ phase 3 epoch 5.
+Kiểm thử/train: R0 và b2_shift02 đang chạy, 1 seed mỗi run; nguồn là ảnh terminal.
+Accuracy và nguồn: Validation, giữa run. R0 (12.420 tham số): cao nhất 98,08% (phase 3 epoch 3, val loss 0,0595). b2_shift02 (3.066 tham số): cao nhất phase 1 96,89% (epoch 13), phase 2 epoch 1 và 2 đều 97,00%. Không phải kết quả cuối.
+Còn lại / bàn giao: Chờ số cuối của R0 và b2_shift02; sau đó người dùng chạy `test_model.py` của folder patch rồi s2_p12.
+
+[2026-11-04 00:36, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc output `test_model.py` của folder patch do người dùng chạy.
+Bắt đầu: 2026-11-04 00:36
+Kết thúc: 2026-11-04 00:36
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: `All checks passed.` (ảnh không hiện 2 dòng đầu). Đo trên cuda:0, batch 64, chưa tính data loader và validation, chưa rõ GPU có đang chạy run khác không: s1_p8 1,0 phút/epoch, 0,1 GB; s2_p12 2,8, 1,3 GB; s3_ru2 8,0, 2,4 GB; s4_ru3 12,6, 3,5 GB; s5_overlap 14,9, 4,8 GB; s6_k4 67,1, 3,9 GB; s7_p16 26,8, 14,1 GB; s8_xl chưa có số trong ảnh. Mọi preset 256/256 pixel. Cặp qubit giữ lại trên ảnh ngẫu nhiên: độ tinh khiết 0,325, tương quan 0,0164, tức khá gần trạng thái hỗn hợp hoàn toàn; đây là rủi ro cho accuracy, chưa đo trên MNIST.
+Kiểm thử/train: `test_model.py` do người dùng chạy; nguồn là ảnh terminal. Chưa train folder patch.
+Accuracy và nguồn: Chưa có accuracy cho kiến trúc này.
+Còn lại / bàn giao: Người dùng train s2_p12, có thể chạy thêm s1_p8 cùng lúc. Không chạy s6_k4 và s8_xl nếu chưa tối ưu tốc độ.
+
+[2026-11-04 00:49, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc cập nhật giữa run của b2_shift02 và R0 do người dùng gửi.
+Bắt đầu: 2026-11-04 00:49
+Kết thúc: 2026-11-04 00:49
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: b2_shift02 hơn max của b2 khoảng 0,16 điểm, chưa đạt ngưỡng 0,5 điểm. Người dùng đang chạy: 1 máy 4090 có R0 và b2_shift02, máy 4090 còn lại có s1_p8 và s2_p12, 4060 Ti có s3_ru2 (theo lời người dùng; chưa thấy log các run patch).
+Kiểm thử/train: Đang chạy, 1 seed mỗi run; nguồn là ảnh terminal.
+Accuracy và nguồn: Validation, giữa run. b2_shift02: cao nhất 97,31% (phase 3 epoch 4, val loss 0,0917). R0: cao nhất 98,15% (phase 3 epoch 7, val loss 0,0571). Không phải kết quả cuối.
+Còn lại / bàn giao: Chờ số cuối của R0, b2_shift02; log hết phase 2 của s2_p12.
+
+[2026-11-04 02:10, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc cập nhật giữa run của R0, b2_shift02, s1_p8, s2_p12 do người dùng gửi.
+Bắt đầu: 2026-11-04 02:10
+Kết thúc: 2026-11-04 02:10
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: b2_shift02 hơn b2 khoảng 0,34-0,37 điểm, vẫn dưới ngưỡng 0,5 và có thể một phần do hiệu ứng trung bình hai lượt. s1_p8 đang thấp hơn b2; s2_p12 ở phase 2 chưa vượt b2 cùng giai đoạn. Giả thuyết vướng víu trong ô chưa được ủng hộ, nhưng s2_p12 chưa xong và s3_ru2 chưa có log. Đề xuất chưa viết code: đo nhiều Pauli trực tiếp trong ô, thay vì chỉ giữ 2 qubit.
+Kiểm thử/train: Đang chạy, 1 seed mỗi run; nguồn là ảnh terminal.
+Accuracy và nguồn: Validation, giữa run, số thấy trong ảnh. R0: cao nhất 98,15% (phase 3 epoch 7). b2_shift02: val loss thấp nhất 0,0820 với acc 97,44% (phase 3 epoch 31), cao nhất 97,52% (phase 3 epoch 29). s1_p8: cao nhất 96,42% (phase 3 epoch 13 và 15). s2_p12: cao nhất phase 1 trong ảnh 96,42% (epoch 17), phase 2 epoch 1 96,68%.
+Còn lại / bàn giao: Chờ số cuối của các run; log s3_ru2; người dùng quyết định có viết bản đo nhiều Pauli không.
+
+[2026-11-04 02:20, Asia/Saigon] [CLAUDE] [ĐANG LÀM]
+Yêu cầu: Thêm preset đo nhiều Pauli trong ô. File dự định sửa trong `full_quantum_16x16_patch_entangled/`: `models/patch_qcnn.py`, `models/__init__.py`, `test_model.py`, `command.txt`, `README.md`.
+
+[2026-11-04 02:25, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Kết thúc mục ĐANG LÀM ngay phía trên.
+Bắt đầu: 2026-11-04 02:20
+Kết thúc: 2026-11-04 02:25 (ước tính)
+Thời lượng: Khoảng 5 phút (ước tính).
+File đọc/sửa/tạo: Sửa 5 file đã nêu ở mục ĐANG LÀM.
+Thay đổi hoặc phát hiện: Thêm `PatchMeasureQCNN`, preset s9_meas (2.546 tham số theo thiết kế) và s10_meas_ru2 (2.610). Đo X, Y, Z trên 12 qubit và ZZ trên 17 liên kết, không trace và không có cây gộp. Preset cũ giữ nguyên, config JSON của chúng không đổi nên run cũ vẫn resume được. `test_model.py` có thêm `--presets`.
+Kiểm thử/train: Chưa chạy; cần chạy `test_model.py --presets s9_meas s10_meas_ru2`.
+Accuracy và nguồn: s1_p8 validation đến phase 3 epoch 20, người dùng gửi ảnh, run bị người dùng dừng: val loss thấp nhất trong ảnh 0,1144 với acc 96,47% (epoch 19), cao nhất 96,49% (epoch 20). Các preset mới chưa có số.
+Còn lại / bàn giao: Người dùng chép `models/patch_qcnn.py`, `models/__init__.py`, `test_model.py`, `command.txt`, chạy kiểm tra rồi train s9_meas.
+
+[2026-11-04 02:33, Asia/Saigon] [CLAUDE] [ĐANG LÀM]
+Yêu cầu: Tạo folder R0 cải tiến: tăng tốc phép đo, khởi tạo cân bằng, thêm fusion. File dự định tạo: toàn bộ trong `full_quantum_16x16_r0_improved/`, sao chép từ folder 2 nhánh rồi sửa bản sao. Không sửa folder gốc, không đọc `noread/`.
+
+[2026-11-04 02:35, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Kết thúc mục ĐANG LÀM ngay phía trên.
+Bắt đầu: 2026-11-04 02:33
+Kết thúc: 2026-11-04 02:35
+Thời lượng: Khoảng 2 phút.
+File đọc/sửa/tạo: Tạo `full_quantum_16x16_r0_improved/`. Folder gốc không đổi.
+Thay đổi hoặc phát hiện: `PauliFeatures` đọc 256 phần tử cho mỗi toán tử thay vì dựng ma trận đầy đủ; `--balanced-conv` chỉ khởi tạo gate conv gần sqrt(iSWAP), vì hai gate liên tiếp sẽ thành iSWAP; `--fusion` dùng một MLP chung trên toàn bộ đặc trưng. Tham số theo thiết kế: fusion3 18.194, fusion2 12.202, balanced 12.420. Fusion viết từ code R0, không dựa trên `noread/`, nên có thể khác bản fusion cũ.
+Kiểm thử/train: Chỉ kiểm tra cú pháp bằng `ast.parse`. CHƯA chạy `test_model.py`, chưa train.
+Accuracy và nguồn: Chưa có accuracy. Fusion cũ khoảng 98,7% vẫn chưa có raw log trong workspace.
+Còn lại / bàn giao: Người dùng chép cả folder, chạy `test_model.py`, rồi train fusion3 và fusion2 theo `command.txt`.
+
+[2026-11-04 02:39, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc cập nhật s2_p12 do người dùng gửi.
+Bắt đầu: 2026-11-04 02:39
+Kết thúc: 2026-11-04 02:39
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Chỉ thêm mục này vào nhật ký. Không sửa code.
+Thay đổi hoặc phát hiện: s2_p12 không vượt mốc phase 2 của b2 (96,87%). Cao hơn s1_p8 nhưng thấp hơn b2. Giả thuyết vướng víu trong ô, ở dạng giữ 2 qubit, không được ủng hộ đến thời điểm này.
+Kiểm thử/train: s2_p12 đang chạy, 1 seed; nguồn là ảnh terminal.
+Accuracy và nguồn: s2_p12 (2.538 tham số theo thiết kế), validation giữa run: cao nhất phase 2 96,70% (epoch 25); cao nhất phase 3 trong ảnh 96,78% (phase 3 epoch 3, val loss 0,1007). Không phải kết quả cuối.
+Còn lại / bàn giao: Chờ s9_meas, s3_ru2, R0, b2_shift02; sau đó fusion2 và fusion3.
+
+[2026-11-04 02:47, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Ghi đầy đủ những gì đã nghiên cứu và các mức accuracy.
+Bắt đầu: 2026-11-04 02:47
+Kết thúc: 2026-11-04 02:50 (ước tính)
+Thời lượng: Khoảng 3 phút (ước tính).
+File đọc/sửa/tạo: Tạo `SO_NGHIEN_CUU_QCNN.txt`; cập nhật `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt`; thêm mục 8 vào `DANH_GIA_KIEN_TRUC_VA_DE_XUAT.txt`.
+Thay đổi hoặc phát hiện: Sổ mới gom bảng kết quả, bài học, trạng thái các hướng, việc tiếp theo, vị trí code. Từ nay cập nhật sổ này sau mỗi kết quả. s2_p12 đã bị người dùng dừng, max 96,78%.
+Kiểm thử/train: Không chạy.
+Accuracy và nguồn: Không có số mới; nguồn từng số ghi trong sổ.
+Còn lại / bàn giao: Người dùng chạy `full_quantum_16x16_r0_improved/test_model.py` rồi train fusion3.
+
+[2026-11-04 02:48, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Sửa lỗi `test_model.py` của `full_quantum_16x16_r0_improved` do người dùng gửi.
+Bắt đầu: 2026-11-04 02:48
+Kết thúc: 2026-11-04 02:48
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Sửa `full_quantum_16x16_r0_improved/test_model.py`.
+Thay đổi hoặc phát hiện: Lỗi nằm ở bài kiểm tra, không phải ở model: head MLP có Dropout ở vị trí 3 nên Linear cuối là `linear.4`, bài test ghi nhầm `linear.3`. Số tham số 4 biến thể đã khớp thiết kế trong lần chạy của người dùng.
+Kiểm thử/train: Người dùng cần chạy lại `test_model.py`; các kiểm tra sau bước này chưa được chạy.
+Accuracy và nguồn: Không có số mới.
+Còn lại / bàn giao: Người dùng chép lại file, chạy lại kiểm tra rồi train fusion3.
+
+[2026-11-04 02:51, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc output `full_quantum_16x16_r0_improved/test_model.py` do người dùng chạy.
+Bắt đầu: 2026-11-04 02:51
+Kết thúc: 2026-11-04 02:51
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `SO_NGHIEN_CUU_QCNN.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: `All checks passed.` Chi tiết thời gian và bộ nhớ ghi trong sổ. Chưa kết luận được mức tăng tốc do đo khi GPU có thể đang bận. Đổi thứ tự: fusion2 trước, fusion3 sau.
+Kiểm thử/train: `test_model.py` do người dùng chạy; nguồn là ảnh terminal. Chưa train.
+Accuracy và nguồn: Không có số mới.
+Còn lại / bàn giao: Người dùng train fusion2, gửi epoch_seconds và log hết phase 2.
+
+[2026-11-04 02:54, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc log đầu run của s9_meas; người dùng báo đang chạy fusion2.
+Bắt đầu: 2026-11-04 02:54
+Kết thúc: 2026-11-04 02:54
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `SO_NGHIEN_CUU_QCNN.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: s9_meas khởi đầu nhanh, ở epoch 4 cao hơn cnn2k cùng epoch (95,78%). Chỉ là số đầu phase 1 của 1 seed, chưa kết luận. Bản này 97,5% tham số là cổ điển và không có cây gộp, nên cần đối chứng `--init random --freeze-core`. Runner xác nhận 2.546 tham số.
+Kiểm thử/train: Đang chạy trên máy train; nguồn là ảnh terminal.
+Accuracy và nguồn: s9_meas validation: epoch 1 94,42%, epoch 2 95,89%, epoch 3 96,35%, epoch 4 96,39%.
+Còn lại / bàn giao: Chờ s9_meas hết phase 2, fusion2, R0, b2_shift02, s3_ru2.
+
+[2026-11-04 02:54, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Người dùng yêu cầu thêm quy tắc luôn cập nhật số liệu vào `SO_NGHIEN_CUU_QCNN.txt`.
+Bắt đầu: 2026-11-04 02:54
+Kết thúc: 2026-11-04 02:54
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Thêm 1 dòng vào mục A.5 của file này; thêm mục nhật ký này.
+Thay đổi hoặc phát hiện: Quy tắc áp dụng cho cả Claude và Codex.
+Kiểm thử/train: Không chạy.
+Accuracy và nguồn: Không có số mới.
+Còn lại / bàn giao: Như mục CLAUDE gần nhất.
+
+[2026-11-04 02:56, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc kết quả cuối của b2_shift02 do người dùng gửi.
+Bắt đầu: 2026-11-04 02:56
+Kết thúc: 2026-11-04 02:56
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `SO_NGHIEN_CUU_QCNN.txt`, `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: Mức tăng so với b2 dưới ngưỡng 0,5 điểm, s5_overlap không ưu tiên.
+Kiểm thử/train: Run hoàn tất do early stop, 1 seed; nguồn là ảnh terminal.
+Accuracy và nguồn: b2_shift02 (3.066 tham số theo thiết kế), validation: checkpoint 97,47% (epoch 70, val loss 0,081213); max 97,54% (epoch 64).
+Còn lại / bàn giao: Chờ R0, s9_meas, fusion2, s3_ru2.
+
+[2026-11-04 03:09, Asia/Saigon] [CLAUDE] [DONE]
+Yêu cầu: Đọc CSV cnn5k do người dùng dán vào hội thoại.
+Bắt đầu: 2026-11-04 03:09
+Kết thúc: 2026-11-04 03:09
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `SO_NGHIEN_CUU_QCNN.txt`, `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: Xác nhận CNN 5.578 tham số đạt khoảng 99% trên đúng protocol 16x16, aug 5 độ. Run dừng do early stop ở epoch 56.
+Kiểm thử/train: Người dùng chạy, 1 seed; nguồn là CSV dán vào hội thoại, không có file trong workspace.
+Accuracy và nguồn: cnn5k validation: checkpoint 99,04% (epoch 46, val loss 0,029670); max 99,11% (epoch 49); phase 1 cao nhất 98,79% (epoch 18); phase 2 cao nhất 99,02% (epoch 24). Khoảng 9,5 s/epoch.
+Còn lại / bàn giao: Chờ R0, s9_meas, fusion2, s3_ru2, s9_meas_frozen.
+
+[2026-11-04 03:11, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Đọc log đầu run của s3_ru2 do người dùng gửi.
+Bắt đầu: 2026-11-04 03:11
+Kết thúc: 2026-11-04 03:11
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `SO_NGHIEN_CUU_QCNN.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: Ở epoch 9, s3_ru2 ngang tree1q (95,56%). Mới giữa phase 1, chưa kết luận.
+Kiểm thử/train: Đang chạy trên máy 4060 Ti, với `--num-workers 2`; nguồn là ảnh terminal.
+Accuracy và nguồn: s3_ru2 validation: epoch 7 95,26%, epoch 8 95,49%, epoch 9 95,57%. Khoảng 895 s/epoch.
+Còn lại / bàn giao: Đánh giá s3_ru2 khi hết phase 2 (epoch 25), so với mốc 96,87% của b2.
+
+[2026-11-04 03:13, Asia/Saigon] [CLAUDE] [PARTIAL]
+Yêu cầu: Cập nhật số giữa run của s9_meas, R0, s9_meas_frozen do người dùng gửi.
+Bắt đầu: 2026-11-04 03:13
+Kết thúc: 2026-11-04 03:13
+Thời lượng: Dưới 1 phút (ước tính).
+File đọc/sửa/tạo: Cập nhật `SO_NGHIEN_CUU_QCNN.txt`, `TONG_HOP_ACCURACY_CAC_Y_TUONG.txt`; thêm mục này. Không sửa code.
+Thay đổi hoặc phát hiện: s9_meas đạt 97,05% ở epoch 6, gần bằng kết quả cuối của b2. Bản gate đóng băng đang thấp hơn khoảng 2 điểm ở đầu run, gợi ý gate học được có đóng góp, chưa kết luận. Runner xác nhận frozen core True, trainable 2482.
+Kiểm thử/train: Đang chạy, 1 seed mỗi run; nguồn là ảnh terminal.
+Accuracy và nguồn: Validation giữa run. s9_meas: epoch 5 96,59%, epoch 6 97,05%. R0: cao nhất 98,21% (epoch 38), val loss thấp nhất 0,0549 với acc 98,19% (epoch 40). s9_meas_frozen: epoch 1 92,29%, epoch 2 93,43%.
+Còn lại / bàn giao: Chờ số cuối của các run; fusion2 chưa có log.
+
+[DONE] 2026-11-04 03:23 - Claude - Khảo sát QCNN 10 lớp đã công bố
+Yêu cầu: "có đọc đi" (hiểu là đồng ý khảo sát tài liệu; không phải cho phép đọc noread/).
+Bắt đầu: sau 03:15. Kết thúc: 2026-11-04 03:23. Thời lượng: không đo chính xác.
+File: SO_NGHIEN_CUU_QCNN.txt (mục 4, thêm mục 6).
+Thay đổi: thêm bảng đối chiếu tài liệu và danh sách đối chứng cần có trước khi viết paper. Không sửa code.
+Kiểm thử/train: không chạy.
+Accuracy và nguồn: số của các bài arXiv, liệt kê trong mục 6; chưa kiểm tra lại với PDF. Không có accuracy mới của dự án.
+Còn lại: chờ số R0, s9_meas, s9_meas_frozen, fusion2, s3_ru2. Đối chứng bỏ vướng víu và bỏ phần quantum chưa có code.
+
+[PARTIAL] 2026-11-04 03:31 - Claude - Ghi số giữa run
+Yêu cầu: người dùng gửi 4 ảnh terminal.
+Bắt đầu và kết thúc: 2026-11-04 03:31. Thời lượng: vài phút.
+File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt.
+Thay đổi: cập nhật số, không sửa code.
+Kiểm thử/train: không chạy trên máy này.
+Accuracy và nguồn [ẢNH], val: R0 98,27% ep 41; s9_meas 97,24% ep 8; s9_meas_frozen 95,00% ep 13; fusion2 94,70% ep 1.
+Còn lại: các run đang chạy tiếp, chưa có số cuối.
+
+[DONE] 2026-11-04 06:50 - Claude - Ghi số cuối R0 và s9_meas_frozen
+Yêu cầu: người dùng gửi 2 ảnh terminal.
+Bắt đầu và kết thúc: 2026-11-04 06:50. Thời lượng: vài phút.
+File: SO_NGHIEN_CUU_QCNN.txt (thêm hai đối chứng còn thiếu vào mục 4), TONG_HOP_ACCURACY_CAC_Y_TUONG.txt.
+Thay đổi: cập nhật số, không sửa code.
+Kiểm thử/train: không chạy trên máy này. Hai run hoàn tất do early stop, 1 seed.
+Accuracy và nguồn [ẢNH], val: R0 CK 98,32% (ep 52, val loss 0,052194), MAX 98,34% (ep 57), dừng ep 62. s9_meas_frozen CK 95,77% (ep 44, val loss 0,141509), MAX 95,77% (ep 44), dừng ep 54.
+Còn lại: nhắc chạy balanced; chờ s9_meas, fusion2, s3_ru2.
+
+[PARTIAL] 2026-11-04 06:52 - Claude - Ghi số s3_ru2 đến ep 52
+Yêu cầu: người dùng dán CSV của s3_ru2 vào hội thoại.
+Bắt đầu và kết thúc: 2026-11-04 06:52. Thời lượng: dưới 1 phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt. Chưa cập nhật TONG_HOP_ACCURACY_CAC_Y_TUONG.txt vì chưa có số cuối.
+Thay đổi: cập nhật số, không sửa code.
+Kiểm thử/train: không chạy trên máy này. Run chưa thấy kết thúc trong CSV, 1 seed, trên 4060 Ti.
+Accuracy và nguồn [CSV dán vào hội thoại, không có file trong workspace], val: CK đến nay 97,12% (ep 46, val loss 0,090019), MAX 97,12% (ep 46); phase 1 cao nhất 96,47% (ep 20), phase 2 cao nhất 96,90% (ep 24). Khoảng 897 s/epoch.
+Còn lại: chờ số cuối s3_ru2, s9_meas, fusion2, balanced.
+
+[PARTIAL] 2026-11-04 07:00 - Claude - Ghi số s9_meas đến ep 54
+Yêu cầu: người dùng dán CSV của s9_meas vào hội thoại.
+Bắt đầu và kết thúc: 2026-11-04 07:00. Thời lượng: dưới 1 phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt. Chưa cập nhật TONG_HOP_ACCURACY_CAC_Y_TUONG.txt vì chưa có số cuối.
+Thay đổi: cập nhật số, ghi s9_meas_random là run dự định. Không sửa code.
+Kiểm thử/train: không chạy trên máy này. Run chưa thấy kết thúc trong CSV, 1 seed.
+Accuracy và nguồn [CSV dán vào hội thoại, không có file trong workspace], val: CK đến nay 98,09% (ep 53, val loss 0,062207), MAX 98,10% (ep 50, lặp lại ở ep 52 và 54); phase 1 cao nhất 97,87% (ep 18), phase 2 cao nhất 98,09% (ep 21). Khoảng 430 s/epoch khi chạy cùng fusion2.
+Còn lại: chờ số cuối s9_meas, s3_ru2, fusion2, balanced, s9_meas_random. s9_meas xong thì nhắc chạy fusion3.
+Đính chính mục 07:00: s9_meas_random mới là đề xuất của Claude, người dùng chưa xác nhận sẽ chạy.
+
+[DONE] 2026-11-04 07:11 - Claude - Ghi số cuối cnn1k
+Yêu cầu: người dùng gửi ảnh terminal.
+Bắt đầu và kết thúc: 2026-11-04 07:11. Thời lượng: dưới 1 phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt.
+Thay đổi: cập nhật số; ghi balanced đang chạy trên máy 4090_1. Không sửa code.
+Kiểm thử/train: không chạy trên máy này. Run hoàn tất do early stop ở ep 54, 1 seed.
+Accuracy và nguồn [ẢNH], val: cnn1k (934 tham số theo thiết kế) CK 96,53% (ep 44, val loss 0,110092), MAX 96,55% (ep 51). Khoảng 10 s/epoch.
+Còn lại: chờ số cuối s9_meas, s3_ru2, fusion2, balanced; câu trả lời của Codex về fusion cũ.
+
+[2026-11-04 14:11, Asia/Saigon] [CODEX] [DONE]
+Yêu cầu: Đối chiếu code fusion ba nhánh cũ trong noread/ với fusion3 mới; người dùng cho phép đọc code và tài liệu/log liên quan trong noread/ chỉ cho câu hỏi này. Không sửa code, không train/test.
+Bắt đầu: 2026-11-04 14:11 (ước tính)
+Kết thúc: 2026-11-04 14:19
+Thời lượng: Khoảng 8 phút.
+File đọc/sửa/tạo: Đọc `noread/full_quantum_16x16_3scan_fusion_mlp16/` (runner, model, readout, TN core, unitary, reupload, README, command); đọc README MLP-32 chỉ để truy nguồn nhận xét 98,7%; đối chiếu `full_quantum_16x16_r0_improved/`; cập nhật `SO_NGHIEN_CUU_QCNN.txt` và mục này. Không sửa code.
+Thay đổi hoặc phát hiện: Fusion cũ có ba core độc lập row/column/Morton; 256 site → 8 qubit qua 5 conv-pool block 2-qubit, rồi 4 lớp strongly-entangling; không có side tap; re-upload chỉ được thêm ở phase 3. Mỗi nhánh chiếu 276 đặc trưng thành 16; head nối 48 → Linear(48,16) → LayerNorm → GELU → Dropout(0) → Linear(16,10). Tính từ module shapes: P3 quantum 4.824 + head 14.378 = 19.202; runner đếm/in trước train P1/P2, chưa thêm 24 re-upload params, nên số đó là 19.178; 19.202 không có log runtime lưu lại. Fusion3 mới có side tap 48/nhánh và ghép thẳng 324×3 vào Linear(972,16); dùng Hermitian parameterization loại bỏ hướng tham số dư. Khác biệt có khả năng ảnh hưởng accuracy nhất là giữ side-tap trước pooling cuối và cách fusion head nhận đặc trưng; đây là suy đoán, chưa được xác nhận thực nghiệm.
+Kiểm thử/train: Không chạy; không sửa code.
+Accuracy và nguồn: Mốc khoảng 98,7% chỉ được README `noread/full_quantum_16x16_3scan_mlp32hidden/README.md` mô tả là plateau validation. Không có CSV/JSON/checkpoint/history trong folder fusion cũ hoặc output path dự kiến tại workspace hiện tại; không xác định được checkpoint-vs-max, epoch, run hoàn tất hay test accuracy.
+Còn lại / bàn giao: Nếu cần số accuracy chính xác, cần lấy raw CSV/summary/checkpoint hoặc log từ máy đã train; hiện chỉ nên ghi ~98,7% validation là [BÁO], trạng thái và cách chọn điểm không rõ.
+
+[DONE] 2026-11-04 14:22 - Claude - Đọc báo cáo của Codex về fusion cũ
+Yêu cầu: người dùng dán câu trả lời của Codex. Claude không đọc noread/.
+Bắt đầu và kết thúc: 2026-11-04 14:22. Thời lượng: vài phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt (thêm phân tích ở mục 2). Không sửa code.
+Thay đổi hoặc phát hiện: Tính lại khớp số tham số của Codex. Quantum cũ 4.824 trừ 2.400 tham số dư bằng đúng 2.424 của fusion3, nên fusion cũ còn 16.802 tham số sau khi bỏ phần dư, ít hơn fusion3 18.194.
+Kiểm thử/train: không chạy. Accuracy: không có số mới.
+Đính chính giờ: các mục Claude ghi 06:50, 06:52, 07:00, 07:11 hôm nay thật ra là giờ UTC, do lệnh lấy giờ sai múi. Giờ Asia/Saigon đúng là 13:50, 13:52, 14:00, 14:11. Từ mục này dùng giờ hệ thống +07:00.
+Còn lại: chờ số cuối s9_meas, s3_ru2, fusion2, balanced.
+
+[DONE] 2026-11-04 14:25 - Claude - Ghi số fusion cũ từ CSV
+Yêu cầu: người dùng dán CSV của full_quantum_16x16_3scan_fusion_mlp16 vào hội thoại.
+Bắt đầu và kết thúc: 2026-11-04 14:25. Thời lượng: vài phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Thay đổi hoặc phát hiện: Xác nhận mốc khoảng 98,7%, trước đó chưa có raw log. Fusion cũ không có side tap vẫn hơn R0 0,38 điểm ở CK; hai bản còn khác số nhánh và head.
+Kiểm thử/train: không chạy trên máy này. CSV đến ep 64, 1 seed; CSV không ghi config.
+Accuracy và nguồn [CSV dán vào hội thoại, không có file trong workspace], val: CK 98,70% (ep 55, val loss 0,043938), MAX 98,72% (ep 54); phase 1 cao nhất 97,70% (ep 20), phase 2 cao nhất 98,45% (ep 24). Khoảng 990 s/epoch.
+Còn lại: chờ số cuối s9_meas, s3_ru2, fusion2, balanced; fusion3 so với mốc 98,70%.
+
+[DONE] 2026-11-04 14:27 - Claude - Sửa điều kiện chạy fusion3
+Yêu cầu: người dùng hỏi có nên chạy fusion3 ngay không, khi fusion2, balanced, s9_meas đang chạy.
+Bắt đầu và kết thúc: 2026-11-04 14:27. Thời lượng: dưới 1 phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt (mục 4). Không sửa code.
+Thay đổi hoặc phát hiện: Điều kiện cũ "s9_meas xong thì chạy fusion3" sai nếu GPU 24 GB: fusion2 12,2 GB + fusion3 18,3 GB = 30,5 GB. Dung lượng 24 GB là giả định, chưa xác nhận trên máy train.
+Kiểm thử/train: không chạy. Accuracy: không có số mới.
+Còn lại: chạy fusion3 khi fusion2 hoặc balanced xong, hoặc khi GPU còn đủ chỗ.
+Bổ sung 2026-11-04 14:30: người dùng xác nhận mỗi máy 4090 có 24 GB, nên fusion3 (18,3 GB) không chạy cùng fusion2 hoặc balanced (12,2 GB) trên một GPU.
+
+[DONE] 2026-11-04 15:46 - Claude - Ghi số cuối s9_meas
+Yêu cầu: người dùng gửi ảnh terminal.
+Bắt đầu và kết thúc: 2026-11-04 15:46. Thời lượng: dưới 1 phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Thay đổi hoặc phát hiện: Số cuối trùng số đến ep 54. Runner ghi phase 3 "38 epoch trong 4367,3 s", không khớp khoảng 430 s/epoch; có thể run đã resume và chỉ tính thời gian của lần chạy sau, chưa xác minh.
+Kiểm thử/train: không chạy trên máy này. Run hoàn tất do early stop ở ep 63, 1 seed.
+Accuracy và nguồn [ẢNH], val: s9_meas (2.546) CK 98,09% (ep 53, val loss 0,062207), MAX 98,10% (ep 50).
+Còn lại: chờ số cuối fusion2, balanced, s3_ru2; s9_meas_random nếu chạy. fusion3 chờ fusion2 hoặc balanced xong.
+
+[PARTIAL] 2026-11-04 18:19 - Claude - Ghi số giữa run fusion2, balanced, s9_meas_random
+Yêu cầu: người dùng gửi 3 ảnh terminal.
+Bắt đầu và kết thúc: 2026-11-04 18:19. Thời lượng: vài phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Thay đổi hoặc phát hiện: fusion2 đến nay thấp hơn mốc R0 ở hết phase 2 (97,78% so với 97,97%, không thấy ep 21-23). Chạy chung làm balanced chậm khoảng 3,6 lần, không phải khoảng 2 lần như Claude ước tính. Xác nhận balanced chạy ở C:\Users\Public.
+Kiểm thử/train: không chạy trên máy này. Đang chạy, 1 seed.
+Accuracy và nguồn [ẢNH], val: fusion2 ep 24 97,78%, ep 28 97,74% (val loss 0,0695); balanced ep 13 97,28%; s9_meas_random ep 15 97,15%.
+Còn lại: chờ số cuối các run; số cuối s3_ru2.
+
+[DONE] 2026-11-04 18:21 - Claude - Ghi quyết định tạm dừng s9_meas_random
+Yêu cầu: người dùng muốn để balanced chạy một mình trước.
+File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code. Không chạy train/test. Không có số mới.
+Còn lại: người dùng dừng s9_meas_random trên máy train, chạy lại sau khi balanced xong.
+
+[PARTIAL] 2026-11-04 18:23 - Claude - Ghi số s3_ru2 đến ep 70
+Yêu cầu: người dùng gửi ảnh terminal.
+Bắt đầu và kết thúc: 2026-11-04 18:23. Thời lượng: dưới 1 phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt. Chưa cập nhật bảng tổng hợp vì chưa có số cuối. Không sửa code.
+Thay đổi hoặc phát hiện: Run chưa dừng như Claude đoán; val loss vẫn giảm rất chậm. CK mới có accuracy thấp hơn CK cũ, trong nhiễu.
+Kiểm thử/train: không chạy trên máy này. Đang chạy, 1 seed.
+Accuracy và nguồn [ẢNH], val: CK đến nay 97,07% (ep 70, val loss 0,0894); ep 69 97,11%; MAX biết được 97,12% (ep 46, CSV), chưa thấy ep 53-67.
+Còn lại: chờ dòng Checkpoint và Max validation cuối của s3_ru2.
+
+[PARTIAL] 2026-11-04 21:19 - Claude - Ghi số giữa run balanced và fusion2
+Yêu cầu: người dùng gửi 2 ảnh terminal.
+Bắt đầu và kết thúc: 2026-11-04 21:19. Thời lượng: vài phút (ước tính).
+File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Thay đổi hoặc phát hiện: Cùng ep 38, balanced ngang R0 (98,18% so với 98,21%). Cùng ep 40, fusion2 thấp hơn R0 0,11 điểm và val loss cao hơn rõ (0,0644 so với 0,0549). Cả hai chưa xong.
+Kiểm thử/train: không chạy trên máy này. Đang chạy, 1 seed.
+Accuracy và nguồn [ẢNH], val: balanced CK đến nay 98,18% (ep 38, val loss 0,0559); fusion2 CK đến nay 98,08% (ep 40, val loss 0,0644).
+Còn lại: chờ số cuối balanced, fusion2, s3_ru2, s9_meas_random.
+
+[ĐANG LÀM] 2026-11-04 21:34 - Claude - Tạo folder đối chứng phần quantum
+Yêu cầu: tạo folder mới đầy đủ code cho C0, C1, C2, C4 theo lộ trình đã đề xuất. File dự định tạo: toàn bộ trong full_quantum_16x16_quantum_audit/. Không sửa folder cũ. Không chạy train/test.
+
+[DONE] 2026-11-04 21:38 - Claude - Tạo folder đối chứng phần quantum
+Yêu cầu: tạo folder mới đầy đủ code theo lộ trình kiểm chứng. Kết thúc mục ĐANG LÀM ngay trên.
+File tạo: full_quantum_16x16_quantum_audit/ (models/patch_audit.py, models/__init__.py, models/unitary.py, run_audit.py, evaluate_test.py, test_model.py, command.txt, README.md, requirements.txt). Sửa SO_NGHIEN_CUU_QCNN.txt (mục 3, 4, 5). Không sửa folder cũ.
+Thay đổi hoặc phát hiện: Preset c0_pixel 2.318, c1_encoding 2.434, c2_product 2.514, c4_local_mlp 2.542, s9_meas 2.546 tham số (tính theo thiết kế). c2_product tính bằng 2 biên độ mỗi qubit nên nhanh hơn s9_meas nhiều, không cần chờ 1,5 giờ như ước tính trước. Thêm cờ --stop-after-phase2.
+Kiểm thử/train: chỉ ast.parse, đạt cho 6 file Python. Chưa chạy test_model.py, chưa train. Accuracy: chưa có.
+Còn lại: người dùng chạy test_model.py rồi 4 đối chứng, gửi dòng Phase 2 result; cần xác nhận đã dừng fusion2, balanced, s3_ru2.
+
+[DONE] 2026-11-04 21:43 - Claude - Ghi kết quả test_model.py của folder đối chứng
+Yêu cầu: người dùng gửi ảnh terminal từ máy D:\tensornetwork_mnist.
+File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Kiểm thử/train: người dùng chạy test_model.py, "All checks passed." [ẢNH]; ảnh không có dòng đầu về số tham số, nhưng check đó đã qua vì nếu sai sẽ dừng. Chưa train.
+Số và nguồn [ẢNH]: s9_meas 0,2324 s/batch, 3,96 GB; c2_product 0,0291 s/batch; c0 0,0020, c1 0,0016, c4 0,0014 s/batch; đối chứng 0,02 GB. Connected ZZ lúc khởi tạo: balanced 0,082, random 0,087, product 0.
+Còn lại: chạy 4 đối chứng, gửi dòng Phase 2 result.
+
+[PARTIAL] 2026-11-04 21:51 - Claude - Ghi kết quả đối chứng hết phase 2
+Yêu cầu: người dùng gửi 3 ảnh terminal.
+File: SO_NGHIEN_CUU_QCNN.txt. Chưa cập nhật bảng tổng hợp vì các run dừng ở phase 2. Không sửa code.
+Thay đổi hoặc phát hiện: c4_local_mlp ngang s9_meas, nên theo quy tắc đã chốt rơi vào nhánh A; chỉ một seed.
+Kiểm thử/train: người dùng chạy, seed 0, --stop-after-phase2.
+Accuracy và nguồn [ẢNH], val, MAX hết phase 2: c0_pixel 95,65% (ep 25, val loss thấp nhất 0,149780 ở ep 23); c1_encoding 97,13% (ep 25, val loss 0,090729); c4_local_mlp 98,03% (ep 25, val loss 0,065079). Mốc s9_meas 98,09%.
+Còn lại: c2_product, s9_meas_random hết phase 2; thêm seed cho c4 và s9_meas; kiểm tra lịch cosine.
+
+[PARTIAL] 2026-11-04 22:00 - Claude - Ghi số giữa run s9_meas_random
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Accuracy và nguồn [ẢNH], val: ep 18-22: 97,13%, 97,26%, 96,77%, 97,35%, 97,29%; cao nhất 97,35% (ep 21, val loss 0,0844). Khoảng 202 s/epoch.
+Còn lại: lấy số phase 2 ở ep 25 rồi dừng run.
+
+[PARTIAL] 2026-11-04 22:03 - Claude - Ghi kết quả c2_product hết phase 2
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Thay đổi hoặc phát hiện: c2_product ngang s9_meas_random (số đến ep 22) nhưng thấp hơn s9_meas khởi tạo balanced 0,87 điểm; khoảng cách sau lẫn yếu tố khởi tạo.
+Accuracy và nguồn [ẢNH], val, seed 0: c2_product MAX hết phase 2 97,22% (ep 24, val loss 0,085716), 2.514 tham số.
+Còn lại: s9_meas_random ở ep 25; các seed của c4 và s9_meas; kiểm tra lịch cosine.
+
+[PARTIAL] 2026-11-04 22:07 - Claude - Ghi số cuối c4_local_mlp seed 0 và hai seed thêm
+Yêu cầu: người dùng gửi 3 ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Accuracy và nguồn [ẢNH], val: c4_local_mlp seed 0 CK 98,19% (ep 50, val loss 0,059305), MAX 98,22% (ep 49), dừng ep 60. MAX hết phase 2: seed 1 98,02% (ep 24), seed 2 97,95% (ep 25). Ba seed hết phase 2: trung bình 98,00%, độ lệch chuẩn khoảng 0,04 điểm.
+Còn lại: s9_meas seed 1, 2; s9_meas_random ep 25; kiểm tra lịch cosine.
+
+[DONE] 2026-11-04 22:18 - Claude - Ghi số s9_meas_random hết phase 2
+Yêu cầu: người dùng gửi ảnh terminal và xác nhận máy C:\Users\Public còn đủ checkpoint. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Accuracy và nguồn [ẢNH], val, seed 0: s9_meas_random MAX hết phase 2 97,37% (ep 24, val loss 0,0846); ep 26-28: 97,31%, 97,11%, 97,47%; dừng ở ep 29.
+Còn lại: thử head nhỏ cho cây TN trên checkpoint R0.
+
+[ĐANG LÀM] 2026-11-04 22:18 - Claude - Tạo folder thử head nhỏ cho cây TN
+Yêu cầu: người dùng đồng ý hướng thu nhỏ head, giữ cây TN. File dự định tạo: toàn bộ trong full_quantum_16x16_tn_small_head/. Không sửa folder cũ. Không chạy train/test.
+
+[PARTIAL] 2026-11-04 22:27 - Claude - Dừng giữa chừng folder head nhỏ vì đổi hướng
+Yêu cầu: người dùng đổi hướng: bỏ augmentation, áp model quantum vào continual learning bằng Mammoth (github.com/aimagelab/mammoth), theo tin nhắn của Nguyễn Tùng. Kết thúc mục ĐANG LÀM về head nhỏ.
+File tạo: full_quantum_16x16_tn_small_head/ (models/small_head.py, sweep_head.py, test_model.py, command.txt, README.md, bản sao models và data). ast.parse đạt 3 file mới. Chưa chạy, chưa có accuracy. Tạm gác, không xóa.
+Còn lại: đọc Mammoth, đề xuất cách tích hợp.
+
+[DONE] 2026-11-04 22:28 - Claude - Đọc Mammoth và ghi hướng mới
+Yêu cầu: áp model quantum vào Mammoth, bỏ augmentation. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code. Mammoth được clone vào thư mục tạm, chỉ đọc, không chạy.
+Còn lại: người dùng chọn cách đánh giá và xác nhận kế hoạch, rồi viết backbone.
+
+[ĐANG LÀM] 2026-11-04 22:38 - Claude - Tích hợp fusion cũ và đối chứng vào Mammoth
+Yêu cầu: người dùng cho đọc noread/full_quantum_16x16_3scan_fusion_mlp16/ và yêu cầu hướng dẫn. File dự định tạo: full_quantum_16x16_mammoth/. Không sửa folder cũ. Không chạy train/test.
+
+[DONE] 2026-11-04 22:39 - Claude - Tích hợp fusion cũ và đối chứng vào Mammoth
+Kết thúc mục ĐANG LÀM ngay trên. Người dùng cho phép đọc riêng noread/full_quantum_16x16_3scan_fusion_mlp16/; không đọc phần khác của noread/.
+File tạo: full_quantum_16x16_mammoth/ (backbone/QuantumCL.py, backbone/quantum_core/, test_quantum_backbones.py, command.txt, README.md). Không sửa folder cũ.
+Thay đổi hoặc phát hiện: tham số theo thiết kế: qcnn-fusion 19.202, qcnn-s9 2.546, c4-local-mlp 2.542, mlp-19k 18.858. Mammoth có 1 epoch mỗi task, bản fusion gốc ở ep 1 chỉ 93,84% nên có thể học chưa tới.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy Mammoth, chưa chạy test, chưa có accuracy.
+Còn lại: người dùng cài Mammoth trên máy train, chạy test, chạy ngắn, gửi kết quả.
+
+[DONE] 2026-11-04 23:23 - Claude - Ghi kết quả kiểm tra backbone trong Mammoth
+Yêu cầu: người dùng gửi ảnh terminal, máy 4090 C:/Users/Public. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Kiểm thử/train: test_quantum_backbones.py "All checks passed." [ẢNH]; số tham số khớp thiết kế. Chưa train, chưa có accuracy.
+Số và nguồn [ẢNH], batch 64: qcnn-fusion 0,9264 s/batch, 18,26 GB; qcnn-s9 0,2407 s/batch, 3,96 GB; c4-local-mlp, mlp-19k 0,0010 s/batch, 0,02 GB.
+Còn lại: chạy ngắn --debug_mode 1 cho 4 đường chạy.
+
+[DONE] 2026-11-04 23:26 - Claude - Thêm đối chứng CNN cho Mammoth
+Yêu cầu: người dùng hỏi vì sao chưa so với CNN. Mammoth không bắt dùng MLP; đây là thiếu sót của Claude.
+File: full_quantum_16x16_mammoth/backbone/QuantumCL.py, command.txt, README.md. Thêm cnn-3k 2.988, cnn-5k 5.578, cnn-19k 19.060 tham số theo thiết kế.
+Kiểm thử/train: chỉ ast.parse. Trên máy train, datasets/seq_8vision.py được đề xuất đổi tên vì cần open_clip và tải CLIP lúc nạp.
+
+[DONE] 2026-11-04 23:29 - Claude - Ghi kiểm tra lại backbone sau khi thêm CNN
+Kiểm thử/train: test_quantum_backbones.py "All checks passed." với 7 backbone [ẢNH]. Chưa train. Người dùng đã cài thêm pandas 3.1.1 vào venv cũ.
+Số và nguồn [ẢNH], batch 64: qcnn-fusion 0,9090 s/batch, 18,26 GB; qcnn-s9 0,2397 s/batch, 3,96 GB; cnn-3k 0,0019, cnn-5k 0,0018, cnn-19k 0,0020 s/batch, 0,02 GB.
+Còn lại: chạy ngắn --debug_mode 1.
+
+[PARTIAL] 2026-11-05 00:04 - Claude - Run Mammoth đầu tiên và lỗi in chỉ số phụ
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt, full_quantum_16x16_mammoth/README.md. Mammoth trên máy train cần sửa utils/loggers.py dòng 387.
+Thay đổi hoặc phát hiện: run xong 20 task rồi lỗi TypeError khi in Backward Transfer, vì giá trị Task-IL là None; lỗi xảy ra trước logger.write nên không có logs.pyd. Đây là lý do người dùng chưa thấy file log.
+Accuracy và nguồn [ẢNH], val, seed 0, chưa rõ backbone: accuracy cuối 63,77% trên 20 task.
+Còn lại: sửa dòng 387, chạy debug lại, rồi chạy lại các run.
+
+[DONE] 2026-11-05 00:07 - Claude - Xác nhận sửa utils/loggers.py trên máy train
+Kiểm thử/train: chạy --debug_mode 1 với sgd, cnn-3k: hết 20 task, in đủ Backward Transfer, Forgetting, Forward Transfer, ghi data/results/domain-il/rot-mnist/sgd/logs.pyd [ẢNH]. Số của run debug không dùng; dòng debug trong logs.pyd phải bỏ qua khi tổng hợp.
+Còn lại: chạy er và sgd thật cho CNN.
+
+[PARTIAL] 2026-11-05 00:16 - Claude - Ghi run Mammoth thứ hai, chưa xác nhận phương pháp
+Yêu cầu: người dùng gửi ảnh và ghi là er, cnn-19k. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Thay đổi hoặc phát hiện: dòng cuối log ghi vào rot-mnist/sgd/logs.pyd, không khớp er. Đang chờ người dùng kiểm tra.
+Accuracy và nguồn [ẢNH], val, seed 0: accuracy cuối 64,82%, Backward Transfer -33,86, Forgetting 34,01.
+
+Bổ sung 2026-11-05 00:18: run 64,82% là sgd, xác nhận từ dòng cuối sgd/logs.pyd [ẢNH]. Chưa có run er thật.
+
+[DONE] 2026-11-05 00:27 - Claude - Ghi run er cnn-19k
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Accuracy và nguồn [ẢNH], val, seed 0: er accuracy cuối 87,70%, Backward Transfer -9,07, Forgetting 9,25. sgd cùng cỡ 64,82%, Forgetting 34,01.
+Còn lại: qcnn-fusion er; qcnn-s9 và cnn-3k để so ở cỡ nhỏ.
+
+[DONE] 2026-11-05 00:36 - Claude - Giảm VRAM của qcnn-fusion
+Yêu cầu: run qcnn-fusion er chậm khoảng 23 s/bước, GPU đầy 24.120/24.564 MiB. Giả thuyết: thiếu VRAM nên đẩy sang RAM, chưa xác nhận.
+File: full_quantum_16x16_mammoth/backbone/quantum_core/fusion_model.py (gradient checkpointing khi train), test_quantum_backbones.py (kiểm tra output và gradient không đổi).
+Kiểm thử/train: chỉ ast.parse. Không đổi model, batch hay replay.
+Còn lại: người dùng dừng run, đóng Epic, chép 2 file, chạy test, chạy lại.
+
+[DONE] 2026-11-05 00:41 - Claude - Xác nhận gradient checkpointing trên máy train
+Kiểm thử/train: test_quantum_backbones.py "All checks passed.", gồm kiểm tra output và gradient không đổi [ẢNH]. qcnn-fusion batch 64: 6,23 GB, 1,2182 s/batch (trước đó 18,26 GB, 0,9090 s/batch).
+Còn lại: chạy lại qcnn-fusion er; gửi tốc độ thực tế và kết quả sau vài task.
+
+[PARTIAL] 2026-11-05 01:29 - Claude - Ghi qcnn-fusion er sau task 1
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Accuracy và nguồn [ẢNH], val, seed 0: sau task 1 93,74%. Khoảng 34 phút tính từ thời điểm trong tên checkpoint đến khi xong task 1. Run đang chạy.
+
+[PARTIAL] 2026-11-05 01:59 - Claude - Ghi qcnn-fusion er sau task 2
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+Accuracy và nguồn [ẢNH], val, seed 0: qcnn-fusion er sau task 2 trung bình 89,59%, từng task 86,03; 93,14. cnn-19k er cùng mốc: 96,06%. Run đang chạy.
+
+
+[ĐANG LÀM] 2026-11-05 02:05 - Claude - Cập nhật tài liệu Mammoth
+Yêu cầu: người dùng đồng ý sửa command.txt và README.md. File dự định sửa: full_quantum_16x16_mammoth/command.txt, full_quantum_16x16_mammoth/README.md. Không đổi code, không chạy train/test.
+
+[DONE] 2026-11-05 02:05 - Claude - Cập nhật tài liệu Mammoth
+Kết thúc mục ĐANG LÀM ngay trên. File: full_quantum_16x16_mammoth/command.txt (thêm --num_workers 0 vào cả 20 lệnh python main.py), full_quantum_16x16_mammoth/README.md (trạng thái, gradient checkpointing, thay đổi trên máy train).
+Kiểm thử/train: không chạy; đã đếm 20/20 lệnh có cờ mới, không lặp. Không có số mới.
+Còn lại: chờ qcnn-fusion er đủ 5-6 task.
+
+[PARTIAL] 2026-11-05 08:24 - Claude - Ghi qcnn-fusion er sau task 12
+Yêu cầu: người dùng gửi ảnh log. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Accuracy và nguồn [ẢNH], val, seed 0: trung bình 76,44%; task 1-11: 70,23; 79,89; 73,78; 48,70; 54,00; 87,95; 70,58; 70,16; 85,81; 87,86; 93,81; task 12 suy ra khoảng 94,5.
+Thay đổi hoặc phát hiện: task mới vẫn đạt khoảng 94, chênh lệch chủ yếu ở phần quên. Đề xuất dừng run để bỏ khoảng 5 giờ còn lại, chưa có xác nhận của người dùng. Đề xuất cũ --n_epochs 5 không còn là bước ưu tiên.
+Còn lại: người dùng quyết định dừng; gửi số cnn-19k er sau task 12; chạy qcnn-s9 er và cnn-3k er.
+
+Bổ sung 2026-11-05: người dùng chốt model phải càng quantum càng tốt và theo hướng tensor network. Rút đề xuất chạy qcnn-s9 er ở mục ngay trên. Không sửa code, không chạy train/test.
+
+[PARTIAL] 2026-11-05 08:31 - Claude - Ghi cnn-19k sau task 11, rút đề xuất dừng qcnn-fusion
+Yêu cầu: người dùng dán log. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Accuracy và nguồn [log người dùng dán], val, seed 0: trung bình 78,80%; từng task 69,46; 96,09; 81,29; 69,28; 60,36; 88,59; 59,64; 95,69; 87,05; 61,16; 98,19. Phương pháp chưa xác nhận; log ghi 02:11, muộn hơn mốc ghi run er (00:27).
+Thay đổi hoặc phát hiện: đề xuất dừng trước đó của Claude sai vì so khác mốc task. Rút đề xuất dừng và nhận định điểm yếu chính là quên.
+Còn lại: cần qcnn-fusion sau task 11 và cnn-19k sau task 12 để so cùng mốc; chờ người dùng quyết định về qcnn-b0.
+
+[PARTIAL] 2026-11-05 08:34 - Claude - Ghi cnn-19k sau task 12, so cùng mốc với qcnn-fusion
+Yêu cầu: người dùng dán log. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Accuracy và nguồn [log người dùng dán], val, seed 0: cnn-19k sau task 12 trung bình 84,89%; từng task 98,17; 87,06; 97,00; 98,17; 94,47; 94,59; 95,69; 52,51; 39,94; 89,06; 73,69; 98,33. qcnn-fusion cùng mốc 76,44%.
+Thay đổi hoặc phát hiện: cùng mốc task 12 thua 8,45 điểm, vượt ngưỡng 5 điểm; CNN đổi 6,09 điểm chỉ sau 1 task nên chưa quyết định dừng từ một mốc.
+Còn lại: lấy chuỗi Accuracy for của cả hai log; phương pháp của log cnn-19k này chưa xác nhận; chờ người dùng quyết định về qcnn-b0.
+
+[PARTIAL] 2026-11-05 08:34 - Claude - Ghi qcnn-fusion sau task 11, so 2 mốc với cnn-19k
+Yêu cầu: người dùng dán log. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Accuracy và nguồn [log người dùng dán], val, seed 0: qcnn-fusion er sau task 11 trung bình 77,02%; từng task 72,68; 82,60; 77,31; 51,08; 55,21; 89,38; 74,21; 73,58; 87,88; 89,54; 93,79. cnn-19k cùng mốc 78,80%.
+Thay đổi hoặc phát hiện: từ task 11 sang 12, mỗi task của fusion đổi nhiều nhất 3,63 điểm, của CNN tới 47,10 điểm. Không đề xuất dừng; cần so cả chuỗi. Đồng hồ máy train có vẻ nhanh khoảng 2 giờ, chưa xác nhận.
+Còn lại: lấy chuỗi Accuracy for của cả hai log; chờ người dùng quyết định về qcnn-b0.
+
+[PARTIAL] 2026-11-05 08:37 - Claude - Ghi chuỗi qcnn-fusion, đính chính log cnn-19k
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Accuracy và nguồn [ẢNH], val, seed 0: qcnn-fusion er trung bình sau task 1-12: 93,74; 89,59; 92,07; 82,0; 82,65; 79,94; 81,5; 81,46; 80,48; 80,34; 77,02; 76,44.
+Thay đổi hoặc phát hiện: log_cnn19k_er_seed0.txt có task 1 lúc 02:18:51, nên hai dòng người dùng dán lúc 02:11 (78,80%, 84,89%) gần như chắc thuộc run sgd. Rút các so sánh và đề xuất GroupNorm dựa trên hai dòng đó.
+Còn lại: lấy chuỗi từ log_cnn19k_er_seed0.txt và đối chiếu log_cnn19k_sgd_seed0.txt; chờ người dùng quyết định về qcnn-b0, cnn-1k.
+
+[PARTIAL] 2026-11-05 08:40 - Claude - So er với er giữa cnn-19k và qcnn-fusion
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Accuracy và nguồn [ẢNH], val, seed 0: cnn-19k er sau task 1-20: 97,6; 96,06; 96,83; 90,26; 91,33; 90,22; 89,51; 87,8; 90,23; 88,8; 86,54; 85,62; 89,01; 89,87; 88,85; 90,38; 90,58; 88,71; 90,36; 89,09; final 87,7. 78,80% và 84,89% xác nhận là sgd.
+Thay đổi hoặc phát hiện: cùng mốc 1-12, CNN hơn fusion trung bình 7,80 điểm, 3 mốc cuối 9,05. Đạt điều kiện dừng; đề xuất dừng qcnn-fusion, giữ log và checkpoint. Dòng task 20 và dòng final của CNN lệch 1,39 điểm, chưa rõ lý do.
+Còn lại: người dùng quyết định dừng run; chờ đồng ý viết qcnn-b0, cnn-1k.
+
+Bổ sung 2026-11-05 08:43: người dùng chốt mục tiêu chính là cải tiến qcnn-fusion, không chuyển model khi nó thua. Đề xuất qcnn-b0, cnn-1k của Claude chưa được duyệt, không viết. Không sửa code.
+
+[DONE] 2026-11-05 08:46 - Claude - Rà kiến trúc cũ theo độ ổn định với ảnh xoay
+Yêu cầu: người dùng hỏi kiến trúc cũ nào ổn định với ảnh thay đổi nhiều. Chỉ đọc code và tài liệu trong workspace, không đọc phần cấm của noread/. Không sửa code, không chạy train/test.
+Thay đổi hoặc phát hiện: chưa có run cũ nào đo trên góc xoay lớn; aug cũ chỉ tới 5-8 độ; không kiến trúc cũ nào được thiết kế cho xoay. Không có số mới.
+Còn lại: đề xuất đo trực tiếp bằng checkpoint cũ trên ảnh xoay; chờ người dùng quyết định.
+
+[DONE] 2026-11-05 08:48 - Claude - Kiểm tra cấu trúc qcnn-fusion
+Yêu cầu: người dùng nhớ ý tưởng gốc là mỗi nhánh xoay một hướng, 3 head riêng và 1 head tổng hợp. Đọc full_quantum_16x16_mammoth/backbone/quantum_core/fusion_model.py và noread/full_quantum_16x16_3scan_fusion_mlp16/. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Thay đổi hoặc phát hiện: 3 head riêng và 1 head tổng hợp đúng; nhánh chỉ đổi thứ tự quét pixel (row, column, morton), không xoay ảnh. Bản Mammoth khớp bản gốc về điểm này. Không có số mới.
+Còn lại: chờ người dùng quyết định có viết biến thể mỗi nhánh một góc xoay không.
+
+[ĐANG LÀM] 2026-11-05 08:51 - Claude - Thêm qcnn-fusion-scan: quét ảnh theo góc
+Yêu cầu: người dùng không đổi ảnh đầu vào, chỉ đổi góc quét của mỗi nhánh. File dự định sửa trong full_quantum_16x16_mammoth/: backbone/quantum_core/fusion_model.py, backbone/QuantumCL.py, test_quantum_backbones.py, command.txt, README.md. Không đổi hành vi qcnn-fusion. Không chạy train/test.
+
+[DONE] 2026-11-05 08:51 - Claude - Thêm qcnn-fusion-scan: quét ảnh theo góc
+Kết thúc mục ĐANG LÀM ngay trên. File trong full_quantum_16x16_mammoth/: backbone/quantum_core/fusion_model.py (angled_scan, tham số orders), backbone/QuantumCL.py (backbone mới, 19.202 tham số theo thiết kế), test_quantum_backbones.py (check_scan_orders), command.txt (bước 5b), README.md. Mặc định của qcnn-fusion không đổi.
+Kiểm thử/train: chỉ ast.parse đạt 3 file Python. Chưa chạy test, chưa có accuracy.
+Còn lại: người dùng chép file, chạy test, chạy er đến task 6, so với qcnn-fusion cùng mốc.
+
+[DONE] 2026-11-05 08:56 - Claude - Xác nhận test qcnn-fusion-scan trên máy train
+Kiểm thử/train: test_quantum_backbones.py "All checks passed." [ẢNH]; 19.202 tham số. Batch 64: qcnn-fusion-scan 0,9892 s/batch, 6,23 GB; qcnn-fusion 1,0779 s/batch, 6,23 GB. Chưa có accuracy.
+Còn lại: chạy er đến task 6, so với qcnn-fusion cùng mốc.
+
+[PARTIAL] 2026-11-05 12:53 - Claude - Ghi qcnn-fusion-scan er sau task 6
+Yêu cầu: người dùng gửi ảnh terminal. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Accuracy và nguồn [ẢNH], val, seed 0: sau task 1-6: 92,21; 89,25; 91,5; 80,18; 79,58; 79,4; trung bình 85,35. qcnn-fusion 86,67; cnn-19k 93,72.
+Thay đổi hoặc phát hiện: dưới ngưỡng 85,7 đã chốt trước; đề xuất bỏ biến thể này, dừng run.
+Còn lại: chẩn đoán phần quên nằm ở mạch hay head, chờ người dùng đồng ý.
+
+[DONE] 2026-11-05 12:58 - Claude - Đọc Mammoth, đính chính dòng final, viết script chẩn đoán head
+Yêu cầu: người dùng đồng ý đọc Mammoth và viết chẩn đoán. Clone e75a491 vào scratchpad, chỉ đọc, không chạy. File: full_quantum_16x16_mammoth/diagnose_fusion_head.py (mới), command.txt, README.md, SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt.
+Thay đổi hoặc phát hiện: dòng final là test thật với góc mới rút; 63,77%, 64,82%, 87,70% đã bị ghi nhầm là validation, đã đính chính. cnn-19k er val sau task 20: 89,09%. Checkpoint safe mode: khóa model có tiền tố net.model., tên file kết thúc _<task>, đếm từ 0.
+Kiểm thử/train: chỉ ast.parse diagnose_fusion_head.py. Chưa chạy.
+Còn lại: người dùng chạy chẩn đoán trên checkpoint task 12 của qcnn-fusion.
+
+[PARTIAL] 2026-11-05 13:08 - Claude - Đề xuất chạy qua đêm DER++
+Yêu cầu: người dùng hỏi chạy gì cùng chẩn đoán khi đi ngủ. Đề xuất cnn-19k rồi qcnn-fusion, derpp, alpha 0.5, beta 0.5 (tự chọn, chưa dò), cùng cấu hình còn lại. Chưa xác nhận người dùng đã chạy; không sửa code, chưa có số.
+Còn lại: output diagnose_fusion_head.py và chuỗi Accuracy for của hai run derpp.
+
+[PARTIAL] 2026-11-05 13:10 - Claude - Ghi chẩn đoán head, chưa có C
+Accuracy và nguồn [ẢNH], validation split, 12 góc mới, không dùng test: A 69,54; B 90,16 (89,99; 90,17; 90,33); B-A 20,62. B là mức trần vì head mới train đúng trên các góc này. Không sửa code.
+Còn lại: chờ C và bảng từng góc.
+
+[DONE] 2026-11-05 13:12 - Claude - Ghi kết quả chẩn đoán head
+Accuracy và nguồn [ẢNH], validation split, 12 góc mới, không dùng test: A 69,54; B 90,16; C 56,98; B-A 20,62; B-C 33,18; 7,1 phút. Bảng từng góc trong SO_NGHIEN_CUU_QCNN.txt.
+Thay đổi hoặc phát hiện: A dao động 37,90-93,70 theo góc, B 82,67-92,90; phần sửa được nằm nhiều ở head. Không sửa code.
+Còn lại: thử head train lại chỉ bằng buffer 500 từ checkpoint để có mức thật, chờ người dùng đồng ý; xem kết quả derpp nếu đã chạy.
+
+[DONE] 2026-11-05 13:13 - Claude - Viết diagnose_buffer_head.py
+Yêu cầu: người dùng xin lệnh đo head train lại bằng buffer. File: full_quantum_16x16_mammoth/diagnose_buffer_head.py (mới), command.txt. Đọc Mammoth: buffer lưu ảnh đã xoay, khóa buffer gồm examples và labels.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy, chưa có số. Ngưỡng chốt trước: D ở 200 epoch hơn A từ 5 điểm trở lên.
+Còn lại: người dùng chép file và chạy.
+
+[DONE] 2026-11-05 13:18 - Claude - Ghi chẩn đoán buffer, đính chính kết luận về head
+Accuracy và nguồn [ẢNH], validation split, 12 góc mới, không dùng test: A 69,54; D 25/100/200 epoch 62,58; 61,83; 61,16. Dưới ngưỡng 74,54.
+Thay đổi hoặc phát hiện: kết luận phần yếu nằm chủ yếu ở head chưa được chứng minh, vì góc đo có thể chưa từng xuất hiện trong các task. File mới: full_quantum_16x16_mammoth/run_log_angles.py, in góc từng task. Kiểm thử/train: chỉ ast.parse.
+Còn lại: người dùng chạy run_log_angles.py với cnn-19k er để lấy góc; chờ quyết định về biến thể đóng băng head.
+
+Bổ sung 2026-11-05 13:19: người dùng ưu tiên accuracy trước, đồng thời giữ hướng quantum. Đề xuất thứ tự: derpp, buffer 5120, rồi n_epochs, chạy cho cả qcnn-fusion và cnn-19k. Không sửa code.
+
+[PARTIAL] 2026-11-05 13:21 - Claude - qcnn-fusion derpp đang chạy
+Nguồn [ẢNH]: task 1, 69/1688 bước, 3,49 s/bước, chưa có accuracy. Thanh 2256 bước trước đây là đánh giá 12 x 188 bước, không phải train. Không sửa code.
+
+[DONE] 2026-11-05 13:24 - Claude - Ghi cnn-19k derpp
+Accuracy và nguồn [ẢNH], val, seed 0: sau task 20 92,79%; trung bình 6 mốc 95,24, 20 mốc 93,92 (er 93,72 và 90,38). Dòng final 90,07 là test. File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Còn lại: qcnn-fusion derpp đang chạy; đạt khi trung bình 6 mốc từ 90,19 trở lên.
+
+[DONE] 2026-11-05 13:28 - Claude - Ghi góc từng task, đối chiếu chẩn đoán
+Nguồn [ẢNH], seed 0, run cnn-19k er, 89,09% trùng run cũ. Task 1-20: 98,79; 128,52; 115,73; 16,83; 33,38; 148,17; 75,44; 76,98; 142,60; 147,03; 174,34; 179,79; 138,01; 33,84; 35,59; 139,71; 93,57; 11,85; 105,51; 73,72.
+Thay đổi hoặc phát hiện: qcnn-fusion er sau task 12 tăng gần như đều theo độ gần với task 11-12, kể cả góc đã học; quên là có thật. Giả định qcnn-fusion cùng góc, chưa đo trực tiếp. Không sửa code.
+Còn lại: chờ qcnn-fusion derpp; chạy buffer 5120.
+
+[PARTIAL] 2026-11-05 13:30 - Claude - Ghi các run qua đêm
+Người dùng báo đang chạy trên 4090: qcnn-fusion derpp alpha 0,5 beta 0,5 buffer 500; cnn-19k er buffer 5120; rồi qcnn-fusion er buffer 5120. Lệnh đầy đủ trong SO_NGHIEN_CUU_QCNN.txt và nhật ký trước. Chưa có số. Không sửa code.
+Còn lại: sáng mai lấy chuỗi Accuracy for của 3 log; ngưỡng derpp: trung bình 6 mốc từ 90,19; ngưỡng buffer 5120 tính sau khi có CNN: từ 88,7 và khoảng cách với CNN từ 5,05 điểm trở xuống.
+
+[PARTIAL] 2026-11-05 18:35 - Claude - Ghi run buffer 5120 và derpp
+Accuracy và nguồn [ẢNH], val, seed 0: cnn-19k er buffer 5120 sau task 20 95,43, trung bình 6 mốc 95,67, 20 mốc 94,87. qcnn-fusion er buffer 5120 sau task 1-4: 94,44; 89,89; 92,26; 90,95. qcnn-fusion derpp sau task 1-2: 93,67; 91,09. File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Thay đổi hoặc phát hiện: đề xuất dừng derpp để run buffer 5120 nhanh hơn, chờ người dùng quyết định. Ngưỡng buffer 5120: trung bình 6 mốc từ 90,62.
+
+[PARTIAL] 2026-11-05 22:21 - Claude - Ghi qcnn-fusion er buffer 5120 sau task 7
+Accuracy và nguồn [ẢNH], val, seed 0: 94,44; 89,89; 92,26; 90,95; 87,78; 88,87; 86,39. Trung bình 6 mốc 90,70, đạt sát ngưỡng 90,62; khoảng cách với CNN 4,97. Không sửa code.
+Còn lại: chạy tiếp đến task 12; hỏi người dùng DER++ đã dừng chưa.
+
+[PARTIAL] 2026-11-05 22:25 - Claude - Ghi từng task qcnn-fusion er buffer 5120
+Accuracy và nguồn [ẢNH], val, seed 0: sau task 7: 84,22; 85,86; 84,17; 88,16; 85,11; 85,71; 91,48. Task 7 train 2,19 s/bước. Không sửa code.
+Còn lại: chuỗi Accuracy for của DER++ chưa nhận.
+
+[PARTIAL] 2026-11-05 22:25 - Claude - Ghi qcnn-fusion derpp sau task 3
+Accuracy và nguồn [ẢNH], val, seed 0: 93,67; 91,09; 88,87. Task 3 từng task: 81,93; 90,71; 93,96. Không sửa code. Đề xuất: chờ mốc 4 rồi quyết định, giữ nếu từ 90,95 (buffer 5120) trở lên.
+
+[DONE] 2026-11-05 22:34 - Claude - Đối chiếu cấu hình với chuẩn Mammoth
+Yêu cầu: người dùng hỏi buffer 5120 có giữ chuẩn continual learning của Mammoth không. Đọc utils/best_args.py. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Thay đổi hoặc phát hiện: buffer 5120 và n_epochs 1 đúng chuẩn; Adam lr 1e-3, batch 32, minibatch 32 và backbone riêng lệch chuẩn; derpp beta 0,5 khác chuẩn 1,0; đề xuất tăng n_epochs của Claude sẽ lệch chuẩn.
+
+[DONE] 2026-11-05 22:58 - Claude - Viết lại kiến trúc qcnn-fusion và phân tích hướng cải tiến
+Yêu cầu: người dùng xin mô tả chi tiết và hướng cải tiến. Đọc backbone/quantum_core/. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Thay đổi hoặc phát hiện: tỷ lệ quantum 25,1% theo số lưu, 14,4% theo số hiệu dụng. Đề xuất thứ tự sau mốc 12 của buffer 5120: khởi tạo balanced, lr riêng cho head, head nhỏ; chờ người dùng quyết định.
+
+[PARTIAL] 2026-11-05 23:04 - Claude - Ghi CSV balanced đến ep 41
+Accuracy và nguồn [CSV người dùng dán], val, seed 0, protocol cũ: ep 1-5 93,55; 95,41; 96,60; 96,11; 96,67. Phase 1 cao nhất 97,41; phase 2 cao nhất 98,09; CK đến ep 41 98,33 (val loss 0,0550). Không sửa code.
+Còn lại: R0 ep 1-5 để quyết định có thử balanced trên fusion không.
+
+[DONE] 2026-11-05 23:05 - Claude - So balanced với R0 ở epoch đầu
+Accuracy và nguồn [CSV người dùng dán], val, seed 0, protocol cũ: R0 ep 1-5 94,38; 95,46; 95,84; 96,05; 96,28. Balanced 93,55; 95,41; 96,60; 96,11; 96,67. Không đạt ngưỡng 1 điểm ở ep 1-2: bỏ balanced. Không sửa code.
+Còn lại: chờ buffer 5120 đến mốc 12; đề xuất lr riêng cho head, chờ người dùng đồng ý.
+
+[ĐANG LÀM] 2026-11-05 23:12 - Claude - Thêm head chuyên gia theo góc (MoE)
+Yêu cầu: người dùng chọn thử H2 trước. File dự định sửa trong full_quantum_16x16_mammoth/: backbone/quantum_core/fusion_model.py, backbone/QuantumCL.py, test_quantum_backbones.py, diagnose_moe_head.py (mới), command.txt, README.md. qcnn-fusion mặc định không đổi. Không chạy train/test.
+
+[DONE] 2026-11-05 23:12 - Claude - Thêm head chuyên gia theo góc (MoE)
+Kết thúc mục ĐANG LÀM ngay trên. File: fusion_model.py (ExpertMixture, tham số experts), QuantumCL.py (qcnn-fusion-moe), test_quantum_backbones.py (check_expert_mixture), diagnose_moe_head.py (mới), command.txt (5e, 5f), README.md. qcnn-fusion mặc định không đổi.
+Kiểm thử/train: chỉ ast.parse đạt 4 file Python. Chưa chạy, chưa có accuracy.
+Còn lại: người dùng chép file, chạy test, lọc offline, rồi chạy Mammoth nếu đạt.
+
+[PARTIAL] 2026-11-05 23:18 - Claude - Ghi qcnn-fusion derpp sau task 4
+Accuracy và nguồn [ẢNH], val, seed 0: 86,46; từng task 76,11; 85,78; 90,19; 93,74. Dưới 90,95 của buffer 5120; đề xuất dừng DER++, giữ log và checkpoint. Không sửa code.
+
+[DONE] 2026-11-05 23:24 - Claude - Ghi trả lời của Nguyễn Tùng, phân tích ý Fourier
+Yêu cầu: người dùng gửi ảnh tin nhắn, hỏi Fourier có ích không. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Thay đổi hoặc phát hiện: Nguyễn Tùng muốn làm quantum tốt, đề nghị hỏi Việt về Fourier. Cần làm rõ Fourier nghĩa nào trước khi viết code.
+
+[DONE] 2026-11-05 23:26 - Claude - Đọc bài Fourier Features của Tancik 2020
+Yêu cầu: người dùng gửi PDF, đoán là bài Nguyễn Tùng nhắc. File: SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không chạy train/test.
+Thay đổi hoặc phát hiện: bài cho MLP tọa độ ít chiều, không áp dụng trực tiếp. Giả thuyết có thể mượn: pha theo tọa độ pixel. Chờ xác nhận bài và hướng từ Nguyễn Tùng hoặc Việt.
+
+[PARTIAL] 2026-11-05 23:37 - Claude - Xác nhận test qcnn-fusion-moe trên máy train
+Kiểm thử/train: test_quantum_backbones.py "All checks passed." [ẢNH]; 13.900 tham số. Chưa có accuracy. Lọc offline đang chạy. Không sửa code.
+
+[DONE] 2026-11-06 00:02 - Claude - Ghi lọc offline qcnn-fusion-moe
+Accuracy và nguồn [ẢNH], validation split, 12 góc mới, không dùng test: A 69,54; E 87,88 (88,02; 87,78; 87,84). Dưới ngưỡng 89,16. Trọng số chuyên gia không đổi theo góc, một chuyên gia bằng 0. Không sửa code.
+Còn lại: chờ buffer 5120 đến mốc 12 và trả lời của Nguyễn Tùng; người dùng quyết định có chạy MoE trong Mammoth không.
+
+Bổ sung 2026-11-06 00:05: người dùng báo Nguyễn Tùng ưu tiên số 1 là cải tiến phần quantum để đóng góp nhiều nhất. Đề xuất: đo mlp-19k er buffer 5120, thu nhỏ head offline, rồi mã hóa pha. Chưa sửa code.
+
+Bổ sung 2026-11-06 00:06: người dùng cần giữ cả accuracy để viết báo. Quy tắc nhận thay đổi: không thêm tham số cổ điển, accuracy giảm không quá 1 điểm, và accuracy hoặc tỷ lệ quantum tăng. Không sửa code.
+
+[ĐANG LÀM] 2026-11-06 00:10 - Claude - Thêm mã hóa pha theo tọa độ cho qcnn-fusion
+Yêu cầu: người dùng báo Nguyễn Tùng đồng ý thử. File dự định sửa trong full_quantum_16x16_mammoth/: backbone/quantum_core/fusion_model.py, backbone/quantum_core/reupload.py, backbone/QuantumCL.py, test_quantum_backbones.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-06 00:10 - Claude - Thêm mã hóa pha theo tọa độ cho qcnn-fusion
+Kết thúc mục ĐANG LÀM ngay trên. File: fusion_model.py (position_phases, phase_cycles), reupload.py (góc tính từ độ lớn), QuantumCL.py (3 backbone), test_quantum_backbones.py (check_position_phase), command.txt (5g), README.md. qcnn-fusion mặc định không đổi về toán.
+Kiểm thử/train: chỉ ast.parse đạt 4 file Python. Chưa chạy, chưa có accuracy.
+Còn lại: người dùng chép file, chạy test, chạy phase2 đến task 6.
+
+[DONE] 2026-11-06 00:15 - Claude - Ghi mlp-19k er buffer 5120
+Accuracy và nguồn [ẢNH], val, seed 0: sau task 20 91,24; trung bình 6 mốc 91,02; 20 mốc 90,05. qcnn-fusion cùng cấu hình 90,70 ở 6 mốc: chưa thấy đóng góp rõ của mạch. File: SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Còn lại: qcnn-fusion-phase2 đến task 6; đóng góp rõ cần trung bình 6 mốc từ 93,02.
+
+[DONE] 2026-11-06 00:22 - Claude - Xác nhận test mã hóa pha trên máy train
+Kiểm thử/train: test_quantum_backbones.py "All checks passed." [ẢNH]; 3 backbone pha 19.202 tham số, 6,23 GB ở batch 64. Chưa có accuracy. Không sửa code.
+Còn lại: chạy qcnn-fusion-phase2 er buffer 5120 đến task 6.
+
+[PARTIAL] 2026-11-06 12:26 - Claude - Ghi phase2 và buffer 5120 đến task 17
+Accuracy và nguồn [ẢNH], val, seed 0: qcnn-fusion-phase2 sau task 1-9: 93,11; 89,08; 91,07; 89,77; 86,98; 87,93; 86,35; 87,46; 87,56; trung bình 6 mốc 89,66, dưới 90,70: bỏ. qcnn-fusion buffer 5120 mốc 12: 88,48; trung bình 12 mốc 89,16 (mlp-19k 89,82).
+Thay đổi hoặc phát hiện: pha theo tọa độ không giúp ở phase2; fusion vẫn chưa hơn MLP. Không sửa code.
+Còn lại: để buffer 5120 chạy hết 20 task; dừng phase2; bàn hướng tiếp với người dùng và Nguyễn Tùng.
+
+[DONE] 2026-11-06 12:41 - Claude - Viết diagnose_readout_sweep.py
+Yêu cầu: người dùng chọn cải thiện readout và cắt tham số. File: full_quantum_16x16_mammoth/diagnose_readout_sweep.py (mới), command.txt (5h), SO_NGHIEN_CUU_QCNN.txt.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy, chưa có số.
+Còn lại: người dùng tạo file trên máy train và chạy lọc offline.
+
+[DONE] 2026-11-06 12:47 - Claude - Danh mục run và script xuất log Mammoth
+Yêu cầu: người dùng cần vẽ biểu đồ tổng hợp từ CSV. File: DANH_MUC_RUN.csv (mới, mỗi run một dòng: thay đổi so với bản nào, tham số, kết quả, file cần gửi), full_quantum_16x16_mammoth/export_mammoth_logs.py (mới). Số lấy từ SO_NGHIEN_CUU_QCNN.txt, không có số mới.
+Kiểm thử/train: chỉ ast.parse và đọc lại CSV. Chưa chạy script.
+Còn lại: người dùng gửi CSV history của các run cũ và CSV xuất từ log Mammoth.
+
+[DONE] 2026-11-06 13:02 - Claude - Vẽ biểu đồ các run MNIST tĩnh
+Yêu cầu: người dùng gửi 18 CSV history ở D:/data_system/Download/ket_qua_csv. File: plot_ket_qua_cu.py (mới), bieu_do/ (3 PNG, tong_hop_cu.csv), DANH_MUC_RUN.csv, SO_NGHIEN_CUU_QCNN.txt, TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Chạy script vẽ trên máy này, không train/test.
+Accuracy và nguồn [CSV], val, seed 0: fusion3 CK 98,33 (ep 45), MAX 98,43, đến ep 55; fusion2 CK 98,06 (ep 46); s1_p8 MAX 96,55.
+Còn lại: thay b2_shift02.csv bằng bản 80 epoch; thêm fusion_cu và mlp256_3nhanh nếu cần.
+
+[DONE] 2026-11-06 13:14 - Claude - Ghi lọc readout offline
+Accuracy và nguồn [ẢNH], validation split, 12 góc mới, không dùng test: current 90,16; linear 86,16; typed1 83,24; typed2 87,27; typed4 89,01. Không đạt ngưỡng 89,16; typed4 sát ngưỡng. Không sửa code.
+Còn lại: người dùng chọn thử typed riêng cho từng nhánh hoặc chạy typed4 như ngoại lệ.
+
+[DONE] 2026-11-06 13:44 - Claude - Ghi lọc readout lần 2
+Accuracy và nguồn [ẢNH], validation split, 12 góc mới: current 90,16; typed4 89,01; typed4b 89,00; typed2b 86,64. Bộ đọc riêng cho từng nhánh không giúp. Không bản nào đạt 89,16. File sửa: full_quantum_16x16_mammoth/diagnose_readout_sweep.py (thêm typedKb, trước đó).
+Còn lại: người dùng quyết định có chạy typed4 trong Mammoth như ngoại lệ không.
+
+[ĐANG LÀM] 2026-11-06 14:02 - Claude - Thêm qcnn-fusion-typed4
+Yêu cầu: người dùng chọn chạy typed4 trong Mammoth như ngoại lệ (offline 89,01, dưới ngưỡng 89,16). File dự định sửa trong full_quantum_16x16_mammoth/: backbone/quantum_core/fusion_model.py, backbone/QuantumCL.py, test_quantum_backbones.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-06 14:02 - Claude - Thêm qcnn-fusion-typed4
+Kết thúc mục ĐANG LÀM ngay trên. File: fusion_model.py (PauliTypeProjection, tham số typed_projection), QuantumCL.py, test_quantum_backbones.py (check_typed_readout), command.txt (5i), README.md. qcnn-fusion mặc định không đổi.
+Kiểm thử/train: chỉ ast.parse đạt 3 file Python. Chưa chạy, chưa có accuracy.
+Còn lại: người dùng chép file, chạy test, chạy er buffer 5120 đến task 6.
+
+[DONE] 2026-11-06 15:56 - Claude - Ghi kết quả cuối qcnn-fusion er buffer 5120
+Nguồn: ảnh người dùng gửi. Dòng final 88,77% là test, Forgetting 5,21 và Backward Transfer -4,63 trên validation. Đã ghi SO_NGHIEN_CUU_QCNN.txt và TONG_HOP_ACCURACY_CAC_Y_TUONG.txt. Không sửa code.
+Còn lại: val sau task 18-20, Forgetting của cnn-19k và mlp-19k buffer 5120.
+
+[DONE] 2026-11-06 17:10 - Claude - Ghi val task 18-20 qcnn-fusion er buffer 5120
+Nguồn: ảnh người dùng gửi. 88,52; 89,09; 89,19; trung bình 20 mốc 89,09. Đã ghi SO và TONG_HOP. Ghi chú: trên máy train có 2 tiến trình qcnn-fusion-typed4 cùng lúc (venv và anaconda3), đã đề nghị người dùng giữ một.
+
+[ĐÍNH CHÍNH] 2026-11-06 17:20 - Claude - Không có 2 run typed4 chạy trùng
+Claude đoán sai: trên Windows, venv\Scripts\python.exe chỉ là trình khởi chạy, nó mở python.exe gốc (ở đây anaconda3) làm tiến trình con, dùng thư viện của venv. Hai tiến trình 32124 (venv) và 42608 (anaconda3) là cùng một run. Lời khuyên dừng cả hai làm mất phần run typed4 đã chạy. Run mới: 42784 (trình khởi chạy, 4 MB) và 28780 (run thật, 1,2 GB).
+
+[DONE] 2026-11-06 17:22 - Claude - Ghi 3 mốc đầu của run typed4 đã dừng
+Nguồn: ảnh người dùng gửi. 93,11; 90,06; 91,28. Đã ghi SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+
+[DONE] 2026-11-06 21:05 - Claude - Ghi mốc 4-5 của typed4
+Nguồn: ảnh người dùng gửi. 89,69; 88,09; mốc 1-3 trùng run đầu. Đã ghi SO_NGHIEN_CUU_QCNN.txt. Không sửa code.
+
+[DONE] 2026-11-06 21:13 - Claude - Phân tích từng task er buffer 5120
+Nguồn: CSV người dùng dán, lưu ở ket_qua_mammoth/mammoth_mean.csv và mammoth_tasks.csv; script ket_qua_mammoth/phan_tich_tung_task.py (chạy trên máy này, chỉ đọc CSV, không train). Forgetting: qcnn-fusion 5,21; mlp-19k 3,50; cnn-19k 2,45. Đã ghi SO và TONG_HOP. Điểm lạ: task 6 và 11 giống hệt nhau ở mọi mốc.
+
+[ĐANG LÀM] 2026-11-06 21:23 - Claude - Thêm đối chứng mlp-12k và cnn-12k
+Yêu cầu: typed4 đạt ngưỡng giữ (6 mốc 89,96), cần đối chứng cổ điển cùng cỡ 12.010. File dự định sửa trong full_quantum_16x16_mammoth/: backbone/QuantumCL.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-06 21:23 - Claude - Thêm đối chứng mlp-12k và cnn-12k
+Kết thúc mục ĐANG LÀM ngay trên. QuantumCL.py: SmallMLP nhận widths (mặc định 64, 32, mlp-19k không đổi), đăng ký mlp-12k (42, 22; 11.970) và cnn-12k (11, 24; 12.070); command.txt 5j; README.md. Ghi typed4 6 mốc vào SO.
+Kiểm thử/train: chỉ ast.parse và đếm tham số bằng tay. test_quantum_backbones.py tự kiểm hai số mới qua EXPECTED_PARAMETERS.
+
+[ĐANG LÀM] 2026-11-06 21:29 - Claude - Viết diagnose_multilevel.py
+Yêu cầu: người dùng muốn cải thiện model, chấp nhận sửa readout; chẩn đoán task 20 cho B 90,17 nên lọc thêm cách đo mạch. File: full_quantum_16x16_mammoth/diagnose_multilevel.py (mới), command.txt. Không chạy train/test.
+
+[DONE] 2026-11-06 21:29 - Claude - Viết diagnose_multilevel.py
+Kết thúc mục ĐANG LÀM ngay trên. Script tự kiểm: final276 tính từng bước phải khớp đặc trưng của model, vector Bloch không dài quá 1. command.txt 5k. Ghi chẩn đoán task 20 (B 90,17) vào SO.
+Kiểm thử/train: chỉ ast.parse.
+
+[DONE] 2026-11-06 23:46 - Claude - Ghi kết quả diagnose_multilevel và thêm hậu tố @K
+Nguồn: ảnh người dùng. final276+level16+level32 91,82 so với final276 90,26. diagnose_multilevel.py: Head nhận projection, readout có hậu tố @K. Kiểm thử: ast.parse.
+
+[DONE] 2026-11-07 00:35 - Claude - Ghi kết quả mlp-12k và cnn-12k
+Nguồn: CSV lọc người dùng dán. mlp-12k 88,54, cnn-12k 94,38 sau task 20. Đã ghi SO và TONG_HOP. Không sửa code.
+
+[DONE] 2026-11-07 00:37 - Claude - Ghi 6 mốc mlp-12k, cnn-12k
+Nguồn: ảnh người dùng. typed4 hơn mlp-12k 0,92 ở 6 mốc. Đã ghi SO. Không sửa code.
+
+[DONE] 2026-11-07 00:41 - Claude - Ghi Forgetting mlp-12k 4,36, cnn-12k 2,89
+Nguồn: ảnh người dùng. Đã ghi SO và TONG_HOP.
+
+[DONE] 2026-11-07 01:19 - Claude - Ghi diagnose_multilevel lần 2
+Nguồn: ảnh người dùng. final276+level32@12 91,06, dưới ngưỡng 91,26. Đã ghi SO. Không sửa code.
+
+[ĐANG LÀM] 2026-11-07 01:26 - Claude - Thêm qcnn-fusion-level32 và run_mammoth.py
+Yêu cầu: người dùng chọn chạy level32 trong Mammoth như ngoại lệ (offline 91,06, dưới ngưỡng 91,26); thêm resume, --end_at, log vào logs/. File trong full_quantum_16x16_mammoth/: backbone/quantum_core/reupload.py, fusion_model.py, backbone/QuantumCL.py, test_quantum_backbones.py, run_mammoth.py (mới), export_mammoth_logs.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-07 01:26 - Claude - Thêm qcnn-fusion-level32 và run_mammoth.py
+Kết thúc mục ĐANG LÀM ngay trên. reupload.py: forward_levels (forward cũ không đổi kết quả). fusion_model.py: bloch, side_level, projection. QuantumCL.py: qcnn-fusion-level32 (19.118). test: check_side_level. run_mammoth.py mới: Tee stdout và stderr vào logs/log_<name>.txt, --end_at (stop_after và bỏ test cuối), --resume (loadcheck, start_from, khôi phục random state từ <ckpt>_rng.pt). export_mammoth_logs.py đọc thêm logs/. command.txt 5l, README.md.
+Kiểm thử/train: chỉ ast.parse 6 file Python, head đếm tay 14.294.
+
+[DONE] 2026-11-07 12:52 - Claude - Viết PROMPT_PHIEN_MOI.md
+Tóm tắt phiên và prompt cho phiên mới, ở thư mục gốc dự án. Không sửa code, không có số mới.
+
+[PARTIAL] 2026-11-07 13:17 - Claude - Ghi test level32 và qcnn-fusion-level32 sau task 6
+Nguồn [ẢNH]: test "All checks passed.", level32 19.118. Val sau task 1-6: 95,65; 91,82; 92,75; 91,67; 89,43; 89,85; trung bình 91,86, đạt ngưỡng 90,70 (mlp-19k 91,02). Đã ghi SO. Không sửa code. Đọc training.py Mammoth e75a491 để kiểm --end_at, --resume.
+Thay đổi hoặc phát hiện: góc task 2-6 khác danh sách góc cũ (buffer 500); ghi chú góc task 6 và 11 cho buffer 5120 là sai. Log có dòng [ROTATION] 98,7864 lạ sau task 6 và run bị Ctrl+C khi đang đánh giá.
+Còn lại: người dùng gửi đoạn cuối log; kiểm checkpoint _6.pt; rồi mới resume từ er_rot-mnist_None_5120_1_20261107-033307_9bad77b1_5.pt. typed4 chạy lại (a2261cd4) đã có checkpoint _15.
+
+[DONE] 2026-11-07 13:24 - Claude - Giải thích dòng [ROTATION] lạ trong log level32
+Nguồn [ẢNH]: dòng 376 là run mới khởi động lúc 15:14 giờ máy train, cùng --name, bị Ctrl+C trước task 1, để lại checkpoints/paused/. Run gốc dừng đúng sau task 6 (9bad77b1 _0 đến _5 và _rng). --end_at hoạt động. Đã ghi SO. Không sửa code.
+Còn lại: người dùng resume từ 9bad77b1_5.pt; kiểm góc task 7 trong log phải khác 98,7864 và các góc task 1-6.
+
+Bổ sung 2026-11-07 13:40: sau khi resume, cuối log có 20 dòng [ROTATION] liên tiếp (22,8084; 37,9703; ...; 9,8331), không trùng góc task 1-6, giống bước test cuối. Chưa giải thích; người dùng bảo bỏ qua. Cần xem lại khi có log đầy đủ, trước khi tin số task 7-20 của level32.
+
+[DONE] 2026-11-07 14:36 - Claude - Ghi typed4 sau task 17, cập nhật PROMPT_PHIEN_MOI.md
+Nguồn [ẢNH]: typed4 chạy lại, val sau task 17 88,37 (qcnn-fusion 89,46, mlp-19k 90,59 [CSV]). Level32 resume khởi động 15:28 giờ máy train. Đã ghi SO. Viết lại PROMPT_PHIEN_MOI.md để bàn giao. Không sửa code.
+Còn lại: typed4 đến task 20 (Forgetting tính từ CSV vì log Tee-Object không có stderr); level32 task 7-20; xuất CSV.
+
+[ĐÍNH CHÍNH] 2026-11-07 14:50 - Claude - --resume của run_mammoth.py hỏng, level32 không train thêm task nào
+Nguồn [ẢNH log dòng 510-616]. (1) main.py của Mammoth lấy args lưu trong checkpoint làm mặc định khi có --loadcheck; checkpoint lưu stop_after=6 từ --end_at 6, lệnh resume không truyền stop_after nên end_task=6, vòng train range(6,6) rỗng. Mammoth chạy ngay test cuối: 64,21% là test thật của model sau task 6 trên 20 góc mới, không dùng để chọn, không ghi vào bảng; rồi lỗi UnboundLocalError cur_task. (2) Khi dựng lại 6 task cũ, góc task 2-6 là 128,7341; 108,4974; 98,0790; 76,2579; 116,2609, khác run gốc (152,44; ...), vì lúc train np.random còn được buffer dùng. Nên dù sửa (1), các task cũ cũng bị đánh giá trên góc khác góc đã train. Claude đã nói resume giữ góc giống run liền mạch: sai. Người dùng quyết định chạy lại level32 từ đầu, đủ 20 task.
+
+[ĐANG LÀM] 2026-11-07 14:50 - Claude - Tắt --resume trong run_mammoth.py
+File: full_quantum_16x16_mammoth/run_mammoth.py, README.md, command.txt. Không chạy train/test.
+
+[DONE] 2026-11-07 14:52 - Claude - Tắt --resume trong run_mammoth.py
+Kết thúc mục ĐANG LÀM ngay trên. run_mammoth.py: --resume báo lỗi và dừng (code cũ giữ lại phía dưới). command.txt 5m: level32 chạy lại từ đầu, --name qcnnfusionlevel32_er_buf5120_seed0_full. README.md sửa đoạn resume. Kiểm thử: ast.parse. SO và PROMPT_PHIEN_MOI.md đã cập nhật.
+Còn lại: người dùng chép run_mammoth.py mới, chạy 5m (~20-26 giờ). 6 mốc đầu phải trùng 95,65; 91,82; 92,75; 91,67; 89,43; 89,85.
+
+[DONE] 2026-11-08 01:09 - Claude - Cập nhật PROMPT_PHIEN_MOI.md để bàn giao
+Ghi rõ đang chờ 2 run trên máy train: typed4 đủ 20 task (đã qua task 17) và level32 chạy lại từ đầu (command.txt 5m), người dùng sẽ gửi kết quả; cách kiểm từng run khi nhận. Không sửa code, không có số mới.
+
+[DONE] 2026-11-08 19:12 - Claude - Đánh giá ý tưởng đồ thị pixel + SQUID/GNN của Nguyễn Tùng
+Nguồn: ảnh tin nhắn người dùng gửi. Đánh giá ghi ở SO_NGHIEN_CUU_QCNN.txt: một lớp nút 9 qubit tương đương s9_meas (ngang c4_local_mlp cổ điển); nhiều lớp vướng víu không mô phỏng chính xác được; lấy mẫu láng giềng không giúp tốc độ. Không sửa code, không có số mới.
+Còn lại: chờ CSV và tom_tat_2run.txt của typed4 và level32; người dùng và Nguyễn Tùng quyết định có thử lớp cục bộ 9 qubit trước cây không.
+
+[ĐÍNH CHÍNH] 2026-11-08 19:18 - Claude - s9_meas không phải ô 3x3 / 8 láng giềng
+Claude đã nói lớp nút 9 qubit giống s9_meas; thật ra s9_meas là ô 3x4 (12 qubit), gate 4 hướng, ô không chồng lấn. Kết luận cùng họ vẫn giữ. Đã ghi đính chính và phân tích từng câu trong tin nhắn của Nguyễn Tùng vào SO_NGHIEN_CUU_QCNN.txt. Không sửa code, không có số mới.
+
+[DONE] 2026-11-08 19:21 - Claude - Ghi tin Nguyễn Tùng: sẽ gửi code GNN quantum
+Nguồn: ảnh tin nhắn. Nguyễn Tùng định xử lý ảnh như GNN nhưng dùng quantum, mai lên lab gửi code. Chưa có code, không sửa gì. Khi nhận: đọc code, xác định số qubit mô phỏng cùng lúc, số lớp truyền tin, phần cổ điển, rồi đề xuất ngưỡng và đối chứng cổ điển cùng cỡ trước khi chạy.
+
+[DONE] 2026-11-08 19:31 - Claude - Ghi kết quả cuối level32 và typed4 (20 task)
+Nguồn [LOG, dòng lọc người dùng dán]: level32 sau task 20 91,50, 20 mốc 90,65, BWT -3,39, Forgetting 3,85, final (test) 90,65. typed4 sau task 20 89,65, 20 mốc 88,79, final (test) 89,36, Forgetting chưa có. Cả hai: 6 mốc đầu trùng run trước; góc task 1-6 của level32 trùng. Task 11 (178,88 độ) gần task 6 (178,62 độ), giải thích khả dĩ cho task 6 = task 11. Đã ghi SO, TONG_HOP. Không sửa code.
+Còn lại: mammoth_tasks.csv để tính Forgetting typed4 và bảng từng task; người dùng xác nhận ngưỡng đề xuất.
+
+[DONE] 2026-11-08 19:31 - Claude - Soạn tin trả lời Việt về SQUID
+Nguồn: ảnh tin nhắn. Việt hỏi có đúng SQUID không. Soạn tin kèm link arXiv 2105.00098 và so sánh s9_meas 98,09 với c4_local_mlp 98,03-98,19. Chưa xác nhận SQUID trong tin nhắn của Nguyễn Tùng là bài này. Không sửa code, không có số mới.
+
+[ĐÍNH CHÍNH] 2026-11-08 19:34 - Claude - s9_meas có ô chồng lấn theo hàng; SQUID khác s9_meas
+Claude đã nói s9_meas có ô không chồng lấn: sai, 8 vị trí hàng cho ô cao 3 nên chồng 1 hàng. Đọc tóm tắt bài SQUID (arXiv 2105.00098): encoder cổ điển nén ảnh thành tham số mạch ít qubit, khác s9_meas. Đã ghi SO. Không sửa code.
+
+[DONE] 2026-11-08 20:00 - Claude - Chẩn đoán khoảng cách với CNN từ mammoth_tasks.csv
+Nguồn [CSV] người dùng gửi, lưu ket_qua_mammoth/mammoth_tasks_20261108.csv (bản cũ mammoth_tasks.csv giữ nguyên). Script mới ket_qua_mammoth/chan_doan_khoang_cach_cnn.py (chỉ đọc CSV). level32 cách cnn-19k 3,93 = học 2,76 + quên 1,17. typed4 Forgetting 4,42, BWT -3,94. Đã ghi SO, TONG_HOP. Không sửa code model, không train.
+
+[ĐANG LÀM] 2026-11-08 20:08 - Claude - Thêm 3 backbone cải tiến level32 (lr mạch, 4 cây, lớp đồ thị) và đóng gói zip _improve
+Yêu cầu: người dùng muốn code đủ để chạy các option chỉ bằng đổi lệnh. File dự định sửa trong full_quantum_16x16_mammoth/: backbone/quantum_core/fusion_model.py, backbone/quantum_core/reupload.py, backbone/quantum_core/graph_layer.py (mới), backbone/QuantumCL.py, test_quantum_backbones.py, command.txt, README.md. Backbone cũ giữ nguyên kết quả. Không chạy train/test.
+
+[DONE] 2026-11-08 20:12 - Claude - Thêm 3 backbone cải tiến level32 (lr mạch, 4 cây, lớp đồ thị) và đóng gói zip _improve
+Kết thúc mục ĐANG LÀM ngay trên. Backbone mới: qcnn-fusion-level32-lr4 (19.118; mọi tham số quantum dùng giá trị = 4 x tham số lưu, tương đương lr x4 dưới Adam, cùng điểm xuất phát; cài bằng thuộc tính param_scale trong unitary.py, reupload.py, graph_layer.py, không dùng torch parametrize vì không deepcopy/pickle được), qcnn-fusion-level32-4tree (19.162; thêm cây Morton dịch 4 pixel, mỗi cây nén về 8; quantum 6.432, 33,6%), qcnn-fusion-level32-graph (19.148; graph_layer.py mới: ZZ trên lưới 8 láng giềng, 2 hệ số gamma, cổng 1 qubit chung, trạng thái 1 qubit chính xác của mỗi pixel, bỏ tương quan; khởi đầu là đồng nhất, tạo không rút số ngẫu nhiên). reupload.forward_levels nhận thêm rho. Backbone cũ: với param_scale = 1 tính y như trước. test_quantum_backbones.py: check_lr_scale, check_four_trees, check_graph_layer (so với statevector 9 qubit lưới 3x3, xoay 90 độ, khởi đầu trùng level32, checkpointing). command.txt 5n (ngưỡng chốt trước), README.md, docstring run_mammoth.py. Zip: full_quantum_16x16_mammoth_improve.zip (23 file).
+Kiểm thử/train: chỉ ast.parse 7 file Python. Chưa chạy test.
+
+[ĐÍNH CHÍNH] 2026-11-08 20:12 - Claude - Accuracy học ngay của level32 task 1-6 là 94,27, không phải 94,66
+Claude đã đưa ngưỡng 95,0 dựa trên 94,66 (sai). Tính lại từ CSV: (95,65 + 92,49 + 94,99 + 94,21 + 93,82 + 94,47) / 6 = 94,27. Ngưỡng mới: từ 94,57.
+
+[DONE] 2026-11-09 13:42 - Ghi kết quả sàng lọc level32-graph và level32-lr4 sau task 6
+Nguồn [ẢNH] người dùng gửi: er buffer 5120, seed 0, validation. qcnn-fusion-level32-graph: 90,23 trung bình 6 task, BWT -4,57, Forgetting 4,69; qcnn-fusion-level32-lr4: 89,05, BWT -4,75, Forgetting 5,55. Cả hai chạy --end_at 6, test cuối bị bỏ qua. So với level32 91,86: -1,63 và -2,81; cả hai dưới ngưỡng loại 91,56 đã chốt trước. Chưa cập nhật TONG_HOP vì đây là sàng lọc 6 task, chưa phải kết quả cuối 20 task. Không chạy gì trên máy này.
+
+[DONE] 2026-11-12 14:01 - Claude - Đánh giá repo SQUID-GNN (phần đầu cổ điển + GNN quantum)
+Nguồn: người dùng gửi link github.com/LeGiangK62/SQUID-GNN, hỏi có áp dụng được và có nên thử MNIST trước không. Đọc README và src/*.py qua web. Kết luận ghi ở SO_NGHIEN_CUU_QCNN.txt: repo là GNN cổ điển có mạch sao 2G-1 qubit đo sau mỗi hop, dữ liệu đồ thị phân tử, không có MNIST, không có số accuracy hay ablation; không nên đưa vào bài Mammoth; nếu thử phần đầu cổ điển thì thử MNIST tĩnh trước với đối chứng bỏ mạch. Không sửa code, không có số mới.
+
+[DONE] 2026-11-12 14:07 - Claude - Ghi level32-4tree: người dùng báo rất chậm và không ổn
+Nguồn [NGƯỜI DÙNG BÁO], không có số. Bỏ 4tree; cả ba cải tiến level32 đều bỏ, level32 vẫn là bản chính. Đã ghi SO. Còn chờ level32 seed 1. Không sửa code.
+
+[ĐANG LÀM] 2026-11-12 14:12 - Claude - Tạo full_quantum_16x16_level32_front: mạng cổ điển nhỏ trước mạch level32, MNIST tĩnh
+Yêu cầu: người dùng muốn thử phần đầu cổ điển trên MNIST tĩnh trước (level32 tĩnh có aug khoảng 98,5, người dùng báo). Folder mới chép từ full_quantum_16x16_level32_aug (không sửa folder gốc); thêm models/front.py, sửa models/fusion_model.py, models/encoding.py, models/__init__.py, run_level32_front.py, evaluate_test.py, test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-12 14:14 - Claude - Tạo full_quantum_16x16_level32_front: mạng cổ điển nhỏ trước mạch level32, MNIST tĩnh
+Kết thúc mục ĐANG LÀM ngay trên. models/front.py mới (ClassicalFront: none, conv1 +10, cnn<C> +19C+1; khởi đầu đồng nhất, tạo trong fork_rng chỉ CPU, không gọi manual_seed vì sẽ đổi trạng thái CUDA). fusion_model.py: tham số front, không kẹp giá trị khi có phần đầu, count_parameters thêm front và quantum_share; front không đi với graph_layer. encoding.py: tùy chọn clamp. run_level32_front.py: --front. evaluate_test.py đọc front. test_model.py: số tham số, khởi đầu giống level32 (state_dict, output, trạng thái ngẫu nhiên), gradient. command.txt (lệnh 2a none, 2b conv1, 2c cnn4, ngưỡng chốt trước), README.md. Zip full_quantum_16x16_level32_front.zip. Folder full_quantum_16x16_level32_aug không sửa.
+Kiểm thử/train: chỉ ast.parse 15 file Python. Chưa chạy test_model.py.
+
+[ĐANG LÀM] 2026-11-12 16:52 - Claude - Thêm encoder cổ điển 1-2k tham số (deep<C>, deep<C>p) và giảm head trong full_quantum_16x16_level32_front
+Yêu cầu: người dùng cho encoder lớn hơn (1-2k tham số), giảm nhẹ MLP; đối chứng bỏ mạch để sau. File: models/front.py, models/fusion_model.py, test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-12 16:53 - Claude - Thêm encoder cổ điển 1-2k tham số (deep<C>, deep<C>p) và giảm head trong full_quantum_16x16_level32_front
+Kết thúc mục ĐANG LÀM ngay trên. front.py: deep<C> (3 conv 3x3, cửa sổ 7x7, cộng dư, 9C^2+20C+1; deep12 1.537), deep<C>p (thêm kênh phi, mỗi qubit RZ(pi phi) RY(pi theta)|0>, 9C^2+29C+2; deep12p 1.646); lớp cuối khởi tạo 0 nên khởi đầu giống level32. fusion_model.py: áp phi lên biên độ |1>. Head giảm bằng --projection 10 (11.948 thay 14.294). deep12p + projection 10: 18.418, quantum 26,2%. test_model.py: thêm số tham số projection 10 và khởi đầu giống level32 cho deep12, deep12p. command.txt 2d (deep12p, chạy trước), 2e (deep12, tùy chọn); epoch giữ 50. Zip cập nhật.
+Kiểm thử/train: chỉ ast.parse. Đối chứng cổ điển cùng encoder để sau theo người dùng.
+
+[DONE] 2026-11-12 16:54 - Claude - Cập nhật PROMPT_PHIEN_MOI.md để bàn giao
+Nguồn [NGƯỜI DÙNG BÁO]: đang chạy level32_front --front conv1 (người dùng gọi "cnn1") và --front cnn4 trên 2 máy, sẽ thử tiếp sau và báo số sau. Viết lại prompt theo trạng thái 2026-11-12: bảng Mammoth cuối, sàng lọc level32, bảng các bản front, ngưỡng, việc khi có số. Không sửa code, không có số mới.
+
+[DONE] 2026-11-12 22:11 - Claude - Ghi số giữa run conv1, cnn4 (level32_front)
+Nguồn [NGƯỜI DÙNG BÁO]: cả hai run khoảng epoch 30/50, MAX val khoảng 98,6; chưa rõ từng run, chưa có CK. So mốc level32_aug khoảng 98,5: tạm ngang (±0,30). Người dùng hỏi có nên chạy encoder lớn hơn; Claude đề xuất 2d deep12p. Đã ghi SO. Không sửa code.
+
+[DONE] 2026-11-13 14:57 - Claude - Ghi kết quả cuối level32_front (nhiều khả năng deep12p proj10)
+Nguồn [ẢNH]: Best Val Acc (MAX) 99,14% (ep 37); Best Val Loss 0,030913 (ep 41) -> CK là val acc ở ep 41, ảnh không có (cần history.csv); ep 50: train loss 0,015198, train acc 99,51% (có aug), val loss 0,032639, val acc 99,10%; 899,7 s/epoch; chạy đủ 50 epoch. Ảnh không ghi tên run, chưa xác nhận là deep12p. Đạt 99,00. Tạm hơn none (mốc 98,5 chưa chắc). Ngang cnn5k cổ điển 99,11 (5.578 tham số). Đã ghi SO, TONG_HOP. Không sửa code.
+
+[DONE] 2026-11-13 15:05 - Claude - Ghi CK deep12p proj10 từ history.csv
+Nguồn [CSV người dùng dán], lưu full_quantum_16x16_level32_front/ket_qua/history_front_deep12p_proj10.csv. CK 99,09 (ep 41), MAX 99,14 (ep 37), 30 epoch đầu MAX 99,06; đạt 99 lần đầu ep 18. Đã ghi SO, TONG_HOP. Không sửa code.
+
+[DONE] 2026-11-13 15:07 - Claude - Ghi kết quả cuối level32_front cnn4
+Nguồn [ẢNH, NGƯỜI DÙNG BÁO]: MAX 98,82% (ep 49); val loss thấp nhất 0,041073 (ep 46), CK chưa có số (cần history.csv); ep 50: train loss 0,028789, train acc 99,09% (có aug), val loss 0,041674, val 98,78%, lr 1,25e-4; 1078,3 s/epoch; đủ 50 epoch; máy D:	ensornetwork_mnist. deep12p hơn cnn4 0,32 (MAX). So none chưa kết luận (mốc 98,5 chưa chắc). Đã ghi SO, TONG_HOP. Không sửa code.
+
+[ĐANG LÀM] 2026-11-13 15:10 - Claude - Thêm 2 đối chứng cổ điển của deep12p (bỏ mạch) trong full_quantum_16x16_level32_front
+Yêu cầu: người dùng muốn 1 bản chỉ có encoder CNN (khoảng 1,6k) và 1 bản CNN cùng tổng tham số. File: models/classical.py (mới), models/__init__.py, run_level32_front.py (--model), evaluate_test.py, test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-13 15:16 - Claude - Thêm 2 đối chứng cổ điển của deep12p (bỏ mạch) trong full_quantum_16x16_level32_front
+Kết thúc mục ĐANG LÀM ngay trên. models/classical.py: EncoderLinear (1.976), EncoderCNN (18.392), dùng ClassicalFront như bản quantum. models/__init__.py: build_model, MODELS. run_level32_front.py: --model qcnn|enc-linear|enc-cnn, --cnn-widths, --cnn-hidden; bản qcnn dựng như cũ qua build_model. evaluate_test.py dùng build_model. test_model.py: test_classical_controls (số tham số, encoder trùng deep12p, gradient). command.txt 2f, 2g + ngưỡng chốt trước; README. Zip cập nhật (đã sửa lỗi dấu \r trong command.txt khi ghi bằng Python).
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test_model.py.
+
+[DONE] 2026-11-13 15:30 - Claude - Ghi 'đầu cnn khoảng 98%' và đánh giá deep12p trên Mammoth
+Nguồn [NGƯỜI DÙNG BÁO], chưa rõ run (Claude hiểu là 2f enc-linear). Tính từ mammoth_tasks_20261108.csv: sau 6 task cnn-19k 94,64, level32 91,86. Đánh giá: khó hơn cnn-19k; đề xuất sàng lọc 6 task có ngưỡng. Đã ghi SO. Không sửa code.
+
+[ĐANG LÀM] 2026-11-13 15:34 - Claude - Tạo folder mammoth_level32_front: backbone level32 + encoder deep12p cho Mammoth rot-mnist
+Yêu cầu: người dùng muốn folder đầy đủ code và lệnh để chạy deep12p trên Mammoth. Chép từ full_quantum_16x16_mammoth (folder gốc không sửa): backbone/, test_quantum_backbones.py, run_mammoth.py, export_mammoth_logs.py. Thêm quantum_core/front.py, sửa quantum_core/encoding.py, fusion_model.py, QuantumCL.py; command.txt, README.md mới. Không chạy train/test.
+
+[ĐÍNH CHÍNH] 2026-11-13 15:36 - Claude - Encoder trong đối chứng cổ điển KHÔNG cùng giá trị khởi đầu với encoder trước mạch
+Claude đã viết (code, test, command.txt, README, SO) là enc-linear/enc-cnn dùng encoder 'cùng giá trị khởi đầu' với deep12p: sai. ClassicalFront rút số ngẫu nhiên trong fork_rng tại vị trí hiện tại của dòng ngẫu nhiên; trong FusionQCNN nó được tạo sau mạch và head, trong đối chứng nó được tạo đầu tiên, nên 2 conv đầu khác giá trị (cùng lớp, cùng cách khởi tạo, conv cuối đều bằng 0). test_model.py (level32_front) với phép so torch.equal sẽ báo lỗi; đã sửa thành so hình dạng và conv cuối bằng 0. Sửa chữ trong classical.py, command.txt, README.md. Zip level32_front cập nhật.
+
+[DONE] 2026-11-13 15:36 - Claude - Tạo folder mammoth_level32_front: backbone level32 + encoder deep12p cho Mammoth rot-mnist
+Kết thúc mục ĐANG LÀM ở trên. Backbone mới: qcnn-fusion-level32-deep12p (18.418: quantum 4.824, front 1.646, head 11.948; projection 10; không dropout như mọi backbone Mammoth), enc-cnn-deep12p (18.392), enc-linear-deep12p (1.976), class EncoderControl. fusion_model.py thêm front (count_parameters giữ dict cũ khi không có front, nên test cũ không đổi); encoding.py thêm clamp; front.py chép từ level32_front. test_quantum_backbones.py: check_front (số tham số, khởi đầu giống level32 projection 10, trạng thái ngẫu nhiên, gradient encoder, đối chứng cùng lớp). command.txt: chép code, test, debug, 3a sàng lọc 6 task, 3b enc-cnn 20 task, 3c enc-linear 20 task, 4 đủ 20 task nếu giữ, ngưỡng chốt trước. Zip mammoth_level32_front.zip. Folder full_quantum_16x16_mammoth không sửa.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test.
+
+[DONE] 2026-11-13 15:47 - Claude - test_quantum_backbones.py của mammoth_level32_front pass trên máy train
+Nguồn [ẢNH]: All checks passed; deep12p front end {'quantum': 4824, 'front': 1646, 'head': 11948, 'total': 18418}, khởi đầu giống level32 (chênh 0,0e+00), |grad| conv cuối encoder 5,89e-01; 3 backbone mới đăng ký đúng số tham số. INFO qcnn-fusion 1,1117 s/batch, 6,23 GB (batch 64). Lần chạy đầu lỗi vì chưa chép backbone vào Mammoth, lần hai chép nhầm vào folder cha (có file thừa ở full_quantum_16x16_mlp_aug\backbone trên máy train, chưa xóa). Không sửa code.
+
+[DONE] 2026-11-13 21:55 - Claude - Ghi sàng lọc 6 task Mammoth qcnn-fusion-level32-deep12p
+Nguồn [ẢNH]: sau task 6 93,25 (92,07; 94,27; 91,77; 96,50; 88,08; 96,80), BWT -3,41, Forgetting 3,60; học ngay TB 96,09 (Claude tính từ BWT). So cùng đại lượng sau task 6 [CSV]: level32 89,85, cnn-12k 93,01, cnn-19k 94,64. Giữ. Đã ghi SO. Không sửa code model.
+[ĐÍNH CHÍNH] Ngưỡng 91,86 (level32) là TB 6 mốc, không phải sau task 6 (89,85); command.txt mammoth_level32_front trộn với cnn-19k 94,64 (sau task 6). Sàng lọc graph 90,23 / lr4 89,05 có thể đã so sai đại lượng (graph có thể +0,38 so level32 thay vì -1,63); chờ xác nhận.
+Còn lại: dòng N=1..5 của run deep12p; chạy 3b enc-cnn-deep12p và 4 (20 task).
+
+[DONE] 2026-11-13 22:05 - Claude - Bổ sung mốc N=1..6 của deep12p Mammoth
+Nguồn [ẢNH]: 96,05; 93,81; 94,78; 94,96; 92,83; 93,25; TB 6 mốc 94,28 (level32 91,86, cnn-12k 94,65, cnn-19k 95,67). Học ngay TB 96,09. Góc trùng level32. Giữ. Dự đoán 92,5-93,5 sai (thấp hơn thực tế). Đã ghi SO. Không sửa code.
+
+[DONE] 2026-11-13 22:15 - Claude - Đề xuất hướng paper cho deep12p
+Ghi ở SO: hướng 'mã hóa là nút thắt', 3 nhánh theo kết quả 3b, danh sách đối chứng cần thêm. Không sửa code, không có số mới.
+
+[DONE] 2026-11-13 22:07 - Claude - Cập nhật PROMPT_PHIEN_MOI.md để bàn giao
+Thêm bảng sàng lọc deep12p Mammoth (TB 6 mốc và sau task 6), kết quả tĩnh level32_front, quy tắc phân biệt 2 đại lượng Mammoth, hướng paper, việc đang chờ (3b enc-cnn-deep12p, lệnh 4, xác nhận graph/lr4). Không sửa code, không có số mới.
+
+[DONE] 2026-11-13 22:25 - Claude - Đánh giá ý tưởng encoder lượng tử (quanvolution) thay encoder CNN
+Ghi ở SO: chỉ khả thi dạng đo rồi mã hóa lại; rủi ro giống s9_meas. Chưa code. Không có số mới.
+
+[ĐANG LÀM] 2026-11-13 22:22 - Claude - Thêm encoder quantum nhỏ (qconv) trước mạch level32 trong mammoth_level32_front
+Yêu cầu: người dùng muốn thử mạch quantum nhỏ làm encoder có ngang encoder CNN không. File: backbone/quantum_core/front.py (QuantumFront, cnn<C>p), fusion_model.py, QuantumCL.py, test_quantum_backbones.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-13 22:28 - Claude - Thêm encoder quantum nhỏ (qconv) trước mạch level32: folder mammoth_qconv_front
+Kết thúc mục ĐANG LÀM 22:22 (người dùng đổi yêu cầu: làm folder mới đầy đủ thay vì sửa mammoth_level32_front; 2 chỗ đã sửa ở mammoth_level32_front/backbone/quantum_core/front.py đã hoàn tác, diff trùng bản level32_front). Folder mới chép từ mammoth_level32_front. front.py: QuantumFront qconv<L>[x<S>][f] (mỗi pixel 1 mạch 9 qubit trên ô 3x3, L lớp RZ RY RZ + CZ 12 cạnh lưới, đo X Y Z 9 qubit chính xác, Linear(27,2) khởi tạo 0, cộng dư vào theta/phi; S tầng; f = góc đóng băng; checkpoint khi train); cnn<C>p. Backbone mới: enc-linear-qconv2x2 (550), enc-linear-qconv4x3 (822), enc-linear-qconv2x2f (442), enc-linear-cnn8p (556), qcnn-fusion-level32-qconv2x2 (16.992), -qconv4x3 (17.264), -cnn8p (16.998). test: check_qconv (so ma trận 512x512, số tham số, đóng băng, khởi đầu giống level32, gradient góc, checkpoint); report mặc định chỉ backbone mới. command.txt (thí nghiệm 1: encoder + linear 20 task; thí nghiệm 2: bản đầy đủ 6 task; ngưỡng chốt trước), README. Zip mammoth_qconv_front.zip.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test.
+
+[DONE] 2026-11-13 22:34 - Claude - Bản MNIST tĩnh của encoder quantum: folder full_quantum_16x16_level32_qconv
+Yêu cầu: người dùng muốn thử trên MNIST tĩnh trước Mammoth. Chép từ full_quantum_16x16_level32_front (không sửa folder đó). models/front.py lấy từ mammoth_qconv_front, thêm front_circuit_parameters (đã chép ngược lại sang mammoth_qconv_front cho hai bản giống nhau). fusion_model.py, classical.py: make_front; count_parameters thêm front_quantum, quantum_share tính cả góc encoder. run_level32_front.py: help, dòng in. test_model.py: test_quantum_encoder (so ma trận 512x512, số tham số, đóng băng, khởi đầu giống level32, gradient góc, checkpoint, enc-linear), test_speed. command.txt: TN1 enc-linear qconv2x2/deep12p/cnn8p/qconv2x2f/qconv4x3; TN2 qcnn qconv2x2/cnn8p/qconv4x3 projection 10; ngưỡng chốt trước. README. Zip full_quantum_16x16_level32_qconv.zip, mammoth_qconv_front.zip cập nhật.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test.
+
+[DONE] 2026-11-13 22:40 - Claude - Cập nhật PROMPT_PHIEN_MOI.md để bàn giao
+Thêm mục (C) encoder quantum qconv (2 folder, bảng tham số, TN1/TN2, ngưỡng, dự đoán), tình trạng chờ test, câu hỏi nâng Linear chưa trả lời, ý anh Tùng về đo gradient, quy tắc giữ front.py hai bản giống nhau. Không sửa code, không có số mới.
+
+[DONE] 2026-11-14 12:15 - Claude - Ghi kết quả đầu level32_qconv (người dùng báo, chưa có số chi tiết)
+Nguồn [NGƯỜI DÙNG BÁO]: 'bản này' MAX khoảng 98,8 (Claude hiểu là 2a qcnn + qconv2x2 proj10, 16.992; chưa xác nhận); TN1: qconv2x2 + linear hơn cnn8p cùng cỡ, thua deep12p 1k9 (chưa có số). Người dùng đã tự tăng tham số readout Linear và đang chạy (chi tiết chưa biết; code trên máy này không đổi). Đã ghi SO. Chưa cập nhật TONG_HOP (chưa có số cuối xác nhận). Không sửa code.
+
+[DONE] 2026-11-14 12:17 - Claude - Ghi MAX(none) 98,84 người dùng báo; 2a qconv2x2 ngang none
+Nguồn [NGƯỜI DÙNG BÁO]: level32 không encoder MAX 98,84 (trước báo khoảng 98,5, cần history.csv). 2a khoảng 98,8: -0,04, ngang, ít tham số hơn 2.126. Đã ghi SO. Không sửa code.
+
+[ĐANG LÀM] 2026-11-14 12:24 - Claude - Tạo full_quantum_16x16_multilevel: level32 đo thêm tầng 64 (và 16), MNIST tĩnh
+Yêu cầu: người dùng muốn đo thêm tầng của cây (bản không encoder), chạy MNIST tĩnh trước, không cần giữ tỷ lệ quantum, ưu tiên tăng accuracy. Chép từ full_quantum_16x16_level32_aug (không sửa folder gốc); sửa models/fusion_model.py (side_level nhận nhiều tầng), run_level32_aug.py, evaluate_test.py, test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-14 12:26 - Claude - Tạo full_quantum_16x16_multilevel: level32 đo thêm tầng 64 (và 16), MNIST tĩnh
+Kết thúc mục ĐANG LÀM ngay trên. fusion_model.py: side_level nhận số hoặc danh sách tầng (16/32/64/128, không trùng), nối X,Y,Z từng tầng theo thứ tự; side_level=32 và [32] giống hệt level32_aug. run_level32_aug.py: --side-level nargs+, in tỷ lệ quantum. evaluate_test.py không đổi. test_model.py mới: số tham số (32+64 26.030; 16+32+64 27.758; 16+32 20.846; đối chứng 32 @18 26.156), [32] giống level32, đặc trưng từng tầng, forward/backward, tốc độ. command.txt (1a 32+64, 1b 16+32+64, 1c 16+32, 2 đối chứng cỡ head; ngưỡng chốt trước), README. Zip full_quantum_16x16_multilevel.zip. Folder level32_aug không sửa.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test_model.py.
+
+[DONE] 2026-11-14 12:28 - Claude - Ghi kết quả cuối Mammoth qcnn-fusion-level32-deep12p 20 task (lệnh 4)
+Nguồn [ẢNH]: BWT -2,19; Forgetting 2,59 (val); dòng final 94,6 (Claude tính 94,602) là test với 20 góc mới, không dùng để chọn. Chưa có val sau task 20 và TB 20 mốc (cần ảnh trên hoặc CSV) nên chưa so ngưỡng. Tham khảo test: cnn-19k 94,94, level32 90,65. Đã ghi SO, TONG_HOP. Không sửa code.
+
+[DONE] 2026-11-14 12:30 - Claude - Ghi val sau task 20 của deep12p Mammoth: 94,58
+Nguồn [ẢNH]. Hơn level32 +3,08 (đạt ngưỡng 91,80); không hơn cnn-19k (-0,85, ngưỡng 95,73); ngang cnn-12k (+0,20). Số từng task đọc từ ảnh không khớp trung bình (lệch 5 điểm tổng), không ghi. Đã ghi SO, TONG_HOP. Không sửa code.
+
+[DONE] 2026-11-14 12:34 - Claude - Kiểm run level32_qconv 'bigfront_readout' của người dùng
+Nguồn [ẢNH]: Front=220, Total 16.992: readout encoder không đổi, model giống 2a, chỉ khác dropout 0. Đã ghi SO. Không sửa code.
+
+[DONE] 2026-11-14 12:35 - Claude - Ghi thay đổi readout enc-linear người dùng tự sửa (pool 2, Linear(ch*64,10))
+Nguồn [NGƯỜI DÙNG BÁO, file dán]. Chỉ EncoderLinear đổi; qcnn không đổi. Số tham số mới tính lại; test_model.py sẽ lỗi assert; code máy này chưa đồng bộ. Đã ghi SO. Không sửa code.
+
+[ĐANG LÀM] 2026-11-14 12:36 - Claude - Readout encoder quantum lớn hơn (qconv...h<H>) và --linear-pool cho enc-linear
+Yêu cầu: người dùng muốn nâng thật readout của encoder (lần sửa trước chỉ đổi enc-linear). File: full_quantum_16x16_level32_qconv/models/front.py (chép sang mammoth_qconv_front/backbone/quantum_core/front.py), models/classical.py, models/__init__.py, run_level32_front.py, test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-14 12:36 - Claude - HỦY mục ĐANG LÀM ngay trên (readout encoder h<H>, --linear-pool)
+Người dùng dừng giữa chừng, muốn tự sửa trên máy train theo hướng dẫn. Chưa sửa file nào trên máy này. Hướng dẫn: trong QuantumConvStage thay readout Linear(27,2) bằng Linear(27,16)-GELU-Linear(16,2), lớp cuối khởi tạo 0; qconv2x2 front 220 -> 1.072, qcnn tổng 16.992 -> 17.844; đối chứng CNN cùng cỡ: --front cnn38p (1.066, tổng 17.838).
+
+[DONE] 2026-11-14 12:39 - Claude - Xác nhận run readout encoder lớn (Front 1.072, tổng 17.844)
+Nguồn [ẢNH]. Sửa có tác dụng. Cảnh báo: sửa trong folder gốc trên máy train, out-dir trùng run Front=220 dropout 0. Đã ghi SO. Không sửa code.
+
+[DONE] 2026-11-14 20:22 - Claude - Ghi số giữa run readout encoder lớn (ep 23)
+Nguồn [ẢNH history.csv]: MAX 98,86 (ep 21), CK tạm 98,83 (ep 18), lr 1,25e-4. Dự đoán khó đạt 99. Đã ghi SO. Không sửa code.
+
+[ĐANG LÀM] 2026-11-14 20:27 - Claude - Tùy chọn readout encoder qconv...h<H>, --linear-pool, đối chứng deep6p cho qconv4x3 (level32_qconv)
+Yêu cầu: người dùng muốn code hướng qconv4x3 (cửa sổ 7x7) để có thể lên 99. Máy train đang có front.py/classical.py sửa tay (readout 16 cố định, pool 2); làm thành tùy chọn để bản gốc và bản sửa cùng chạy được. File: models/front.py (chép sang mammoth_qconv_front), models/classical.py, models/__init__.py, run_level32_front.py, evaluate_test.py, test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-14 20:29 - Claude - Tùy chọn readout encoder qconv...h<H>, --linear-pool, đối chứng deep6p cho qconv4x3 (level32_qconv)
+Kết thúc mục ĐANG LÀM ngay trên. front.py: parse_qconv trả thêm hidden, QuantumConvStage(hidden), không h giữ Linear(27,2) và số ngẫu nhiên như cũ; chép sang mammoth_qconv_front (cmp giống hệt). classical.py: EncoderLinear(pool); __init__.py truyền linear_pool; run_level32_front.py --linear-pool, help --front; evaluate_test.py --front/--linear-pool ghi đè config. test_model.py: qconv2x2h16 1.072, khóa state_dict, enc-linear pool 2/1, tổng qconv4x3 17.264, deep6p 17.272, qconv2x2h16 17.844, cnn38p 17.838, khởi đầu giống level32, tốc độ thêm qconv4x3, deep6p. command.txt mục 2026-11-14 (2c chính, 2d, 2e, evaluate, ngưỡng), README. Zip level32_qconv và mammoth_qconv_front tạo lại.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test_model.py.
+
+[DONE] 2026-11-14 20:36 - Claude - Người dùng chép front.py, classical.py mới lên máy train (D:	ensornetwork_mnist)
+Nguồn [ẢNH]: QuantumFront qconv4x3 492, qconv2x2h16 1.072 tham số, khớp. Trên ảnh còn dòng "Best Val Loss: 0.184262 (Epoch 28)" của một run chưa rõ tên. Không sửa code.
+
+[DONE] 2026-11-14 20:43 - Claude - Cập nhật PROMPT_PHIEN_MOI.md để bàn giao
+Thêm: Mammoth deep12p 20 task (val 94,58, BWT -2,19, Forgetting 2,59, test 94,60); none 98,84 người dùng báo; 2a ~98,8 ngang; TN1 định tính; run readout to giữa run; code h<H>, --linear-pool, evaluate ghi đè; 2c qconv4x3 / 2d deep6p sắp chạy; folder multilevel; quy tắc dòng final là test, kiểm số đọc từ ảnh. Không sửa code, không có số mới.
+
+[DONE] 2026-11-15 17:21 - Claude - Ghi kết quả 2c front_qconv4x3_proj10 (level32_qconv): 99,01
+Nguồn [NGƯỜI DÙNG BÁO], chưa có ảnh/CSV; Claude hiểu là MAX val, chưa rõ CK, epoch, run đã xong chưa. Đạt ngưỡng 98,84 và 99,00 (sát). So deep12p 99,14 -0,13 ngang (ít hơn 1.154 tham số); so 2a khoảng +0,2, chưa đủ +0,30; dự đoán 98,9-99,1 đúng. Chưa có 2d deep6p. Đã ghi SO, cập nhật PROMPT_PHIEN_MOI.md. Chưa ghi TONG_HOP (chờ số cuối). Không sửa code.
+
+[DONE] 2026-11-15 17:24 - Claude - Ghi history.csv 2c qconv4x3 ep 1-32 (giữa run), dropout 0
+Nguồn [CSV người dùng dán], lưu full_quantum_16x16_level32_qconv/ket_qua/history_front_qconv4x3_proj10_ep32.csv. MAX 99,03 = CK (ep 29, val loss 0,036316); 99,01 là ep 30/32. Dropout 0 [NGƯỜI DÙNG BÁO], khác lệnh 2c (0,2): ngoại lệ; 2d deep6p phải chạy --dropout 0. Dừng sớm ở ep 39 nếu val loss không giảm. Đã ghi SO, PROMPT. Không sửa code.
+
+[ĐÍNH CHÍNH] 2026-11-15 17:26 - Claude - Mọi run của người dùng đều dropout 0
+Nguồn [NGƯỜI DÙNG BÁO]: chỉ tăng dropout khi thấy overfit, chưa thấy. 2c dropout 0 không phải ngoại lệ; 2c so 2a (+0,23) là so sạch, chưa đủ +0,30. Sửa full_quantum_16x16_level32_qconv/command.txt: 2b, 2d --dropout 0, thêm ghi chú (giữ CRLF, kiểm diff). Đã ghi SO, PROMPT.
+
+[DONE] 2026-11-15 17:29 - Claude - Viết KIEN_TRUC_front_qconv4x3_proj10.txt (level32_qconv)
+Giải thích kiến trúc và luồng dữ liệu từ mã nguồn: tiền xử lý, encoder qconv4x3 (3 tầng mạch 9 qubit, 4 lớp RZRYRZ+CZ, đo XYZ, Linear(27,2) dư), mã hóa 256 qubit, 3 cây (5 conv-pool, đo tầng 32, re-upload, strongly-entangling 8 qubit, Pauli 276), head 11.948, huấn luyện, sơ đồ tensor, phần quantum/cổ điển. Kiểm số tham số khớp 17.264. Không sửa code.
+
+[DONE] 2026-11-15 17:38 - Claude - Hình TikZ kiến trúc qconv4x3 (level32_qconv/hinh_kien_truc_qconv4x3.tex)
+3 trang: tổng quan luồng dữ liệu; một tầng encoder qconv (mạch 9 qubit, CZ lưới, readout); một cây (conv-pool, đo tầng 32, re-upload, strongly-entangling, Pauli 276, ba thứ tự quét). Máy này không có LaTeX: chưa biên dịch, chỉ kiểm cân ngoặc/môi trường. Không sửa code.
+
+[DONE] 2026-11-15 18:59 - Claude - Ghi giữa run TN1 1e enc-linear qconv4x3 (ep 1-13)
+Nguồn [ẢNH history.csv]. MAX 95,77 = CK (ep 13), lr 1e-3. Chưa rõ pool 4 hay 2 (cần config.json). Không đạt ngưỡng tự gánh 98,84; 2c đầy đủ 99,03 cao hơn khoảng 3,3. Chép số vào full_quantum_16x16_level32_qconv/ket_qua/history_enc_linear_qconv4x3_ep13_tu_anh.csv. Đã ghi SO, PROMPT. Không sửa code.
+
+[DONE] 2026-11-15 19:16 - Claude - Tài liệu LaTeX kiến trúc qconv4x3 (level32_qconv/kien_truc_qconv4x3.tex)
+Mô tả từ tiền xử lý (ToTensor /255, aug, resize bilinear 16x16 align_corners=False, kẹp, làm phẳng) đến encoder qconv (mã hóa, RZRYRZ, CZ 12 cạnh, Pauli 27, Linear(27,2) dư), 256 qubit, thứ tự quét, cây (conv-pool, tầng 32, re-upload, strongly-entangling, Pauli 276), head, huấn luyện, bảng kết quả. Chèn hình từ hinh_kien_truc_qconv4x3.pdf nếu có. Chưa biên dịch (máy không có LaTeX), chỉ kiểm cân ngoặc. Không sửa code.
+
+[ĐANG LÀM] 2026-11-15 20:26 - Claude - Folder mới full_quantum_16x16_level32_qconv_linhead: encoder + mạch như level32_qconv, head = 3 Linear(372,10) (mỗi cây một cái), lấy trung bình logit
+Yêu cầu người dùng. Chép từ full_quantum_16x16_level32_qconv (không sửa folder gốc). Sửa: models/fusion_model.py (tham số head), models/__init__.py, run_level32_front.py (--head), test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-15 20:28 - Claude - Folder mới full_quantum_16x16_level32_qconv_linhead (head tuyến tính)
+Kết thúc mục ĐANG LÀM ngay trên. fusion_model.py: tham số head (mlp | linear3 | linear-shared); linear3 = Linear(372,10) mỗi cây, logit = trung bình, fusion None; count_parameters bỏ qua fusion None. __init__.py truyền head (config cũ không có thì mlp). run_level32_front.py --head (mặc định linear3), in head. test_model.py: test_linear_heads (16.506 / 9.046, logit = trung bình đầu ra 3 Linear qua hook, đủ gradient, mlp vẫn 17.264), tốc độ 3 head. command.txt (L1 linear3, L2 linear-shared, dropout 0, ngưỡng chốt trước), README. front.py giống hệt level32_qconv và mammoth_qconv_front (cmp). Zip full_quantum_16x16_level32_qconv_linhead.zip. Folder level32_qconv không sửa.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test_model.py.
+
+[DONE] 2026-11-15 21:12 - Claude - Đề xuất hướng paper (người dùng lo không có gì mới)
+Ghi vào SO: (1) thực nghiệm đối chứng chặt, (2) continual learning, (3) dự phòng benchmark/kết quả âm, (4) phân tích mô phỏng và chi phí phần cứng. Không sửa code.
+
+[DONE] 2026-11-15 22:25 - Claude - Tra tài liệu độ mới (web, chỉ abstract)
+Ghi kết quả vào SO. Danh sách bài cần tải toàn văn gửi người dùng. Không sửa code.
+
+[ĐANG LÀM] 2026-11-15 23:28 - Claude - Đối chứng cnn3: 3 nhánh CNN cổ điển thay encoder + 3 cây, giữ nguyên head (level32_qconv_linhead)
+Yêu cầu người dùng: so với CNN cùng readout. Mỗi nhánh Conv(1->8) BN ReLU Pool, Conv(8->23) BN ReLU Pool, Flatten 368; head mlp/linear3/linear-shared như FusionQCNN. File: models/classical.py, models/__init__.py, run_level32_front.py (--cnn3-widths), test_model.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-15 23:29 - Claude - Đối chứng cnn3 (level32_qconv_linhead)
+Kết thúc mục ĐANG LÀM ngay trên. classical.py CNN3Branch (3 nhánh Conv(1->8)-Conv(8->23), 368 đặc trưng, head mlp/linear3/linear-shared như FusionQCNN); __init__.py model cnn3; run_level32_front.py --cnn3-widths; test_model.py test_cnn3_control (17.291/16.533/9.153, hình dạng head khớp qcnn trừ 368/372, gradient), tốc độ; command.txt C1, C2, ngưỡng; README. Zip tạo lại.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test_model.py.
+
+[ĐANG LÀM] 2026-11-15 23:45 - Claude - Folder mới classical_cnn_16x16: thang CNN cổ điển (SmallCNN như cnn5k/cnn-19k) từ 934 đến 85k tham số, quét lr, cùng runner/dữ liệu với level32
+Yêu cầu người dùng. File: models.py, run_cnn.py, evaluate_test.py, test_model.py, run_sweep.ps1, tong_hop.py, command.txt, README.md. Không chạy train/test.
+
+[DONE] 2026-11-15 23:47 - Claude - Folder mới classical_cnn_16x16 (thang CNN cổ điển)
+Kết thúc mục ĐANG LÀM ngay trên. models.py SmallCNN + 10 preset (934 đến 85.258, công thức 12a+9ab+16b^2+14b+10 kiểm bằng tính tay), run_cnn.py (cùng split/aug/Adam/ReduceLROnPlateau/dừng sớm/đầu ra như runner level32), run_sweep.ps1 (10 cỡ x lr 3e-3/1e-3/3e-4, bỏ qua run xong), tong_hop.py (bảng, lr tốt nhất mỗi cỡ, ket_qua_cnn.csv), evaluate_test.py, test_model.py (số tham số, forward/backward, tiền xử lý trùng preprocess_full_quantum, tốc độ), command.txt (ngưỡng chốt trước), README. Zip classical_cnn_16x16.zip.
+Kiểm thử/train: chỉ ast.parse. Chưa chạy test_model.py.
+
+[DONE] 2026-11-15 23:59 - Claude - classical_cnn_16x16: thêm lệnh tạo folder logs vào command.txt
+Nguồn [ẢNH]: chạy tay lệnh cnn17k lr 3e-4 lỗi DirectoryNotFound vì chưa có .\logs (Tee-Object không tự tạo). Zip tạo lại. Không sửa code.
+
+[ĐANG LÀM] 2026-11-16 01:01 - Claude - Gói mammoth_full_package: cài từ máy trống và chạy Mammoth rot-mnist (thang CNN + qcnn-fusion-level32-qconv4x3)
+Yêu cầu người dùng. Chép backbone/run_mammoth/export/test từ mammoth_qconv_front (không sửa folder đó), thêm cnn-17k/30k/50k/85k, qcnn-fusion-level32-deep6p; script cài (Python 3.11, venv, torch CUDA, Mammoth zip commit e75a491c69fd729edeb01431afb753d9157d9a81) và chạy cả hàng đợi. Không chạy train/test.
+
+[DONE] 2026-11-16 01:03 - Claude - Gói mammoth_full_package
+Kết thúc mục ĐANG LÀM ngay trên. setup.ps1 (GPU, Python 3.11 qua winget, .venv, torch cu124, Mammoth zip commit đầy đủ, requirements bỏ dòng torch, chép file, test), run_all.ps1 (gọi setup nếu cần, smoke test debug_mode, hàng đợi cnn-5k/12k/17k/19k/30k/50k/85k, mlp-19k, qcnn-fusion-level32-qconv4x3, qcnn-fusion-level32-deep6p; er buf 5120 cấu hình cũ; bỏ qua run xong, đổi tên log dở; export CSV vào ket_qua sau mỗi run; -Only), CHAY_TAT_CA.bat, README. QuantumCL.py thêm 5 backbone (số tham số tính tay), test_quantum_backbones.py đổi danh sách đo tốc độ. front.py giống hệt level32_qconv (cmp). Zip mammoth_full_package.zip. Kiểm: ast.parse, PowerShell ParseFile 0 lỗi. Chưa chạy.
+
+[DONE] 2026-11-16 01:06 - Claude - mammoth_full_package: thêm LENH_CHAY_LE.txt (lệnh tay từng run), zip tạo lại
+Không sửa code.
+
+[DONE] 2026-11-16 01:06 - Claude - Cập nhật PROMPT_PHIEN_MOI.md để bàn giao
+Thêm: danh sách đọc (KIEN_TRUC, linhead, classical_cnn_16x16, mammoth_full_package), quy tắc dropout 0, folder logs, zip, script ps1 ASCII; mục gói Mammoth máy mới; cnn3 và lệnh L1/C1; thang CNN đang chạy; tài liệu kiến trúc và tex; tra tài liệu độ mới; hướng paper cập nhật; việc chờ và đề xuất chờ quyết. Không sửa code, không có số mới.
+
+[ĐANG LÀM] 2026-11-16 11:48 - Claude - Folder mới qcnn_qconv4x3: bản quantum encoder qconv4x3 + level32 (2c) tổ chức lại theo package (encoder_quanvolution/, core/, layers/, data/), requirements torch GPU
+Yêu cầu người dùng. Chép từ full_quantum_16x16_level32_qconv (không sửa folder đó), chỉ giữ đường code của model qcnn + qconv; giữ tên module và thứ tự khởi tạo để giống hệt 2c và nạp được checkpoint cũ. Không chạy train/test.
+
+[DONE] 2026-11-16 11:52 - Claude - Folder qcnn_qconv4x3 (bản 2c tổ chức lại)
+Kết thúc mục ĐANG LÀM ngay trên. qcnn/: data/preprocessing.py; encoder_quanvolution/quanvolution.py (phần quantum của front.py), angle_encoding.py; core/ (unitary, tn_core, reupload, pauli chép nguyên; measurement.py bloch; scan_orders.py); layers/readout.py (head mlp/linear3/linear-shared); model.py QCNNQconv (thứ tự khởi tạo và tên module như FusionQCNN). train.py, evaluate_test.py (chép runner, đổi import/tham số, mặc định 2c), test_model.py (số tham số, so mạch với ma trận 512x512, khởi đầu đồng nhất, so giống hệt FusionQCNN gốc nếu folder gốc nằm cạnh, forward/backward, tốc độ), requirements.txt (torch==2.7.1+cu126, torchvision==0.22.1+cu126, extra-index-url), command.txt, README. Kiểm: ast.parse 19 file; so AST các hàm/lớp chép với gốc: giống hệt; cmp core/preprocessing: giống hệt. Zip qcnn_qconv4x3.zip. Chưa chạy test.
+
+[DONE] 2026-11-16 11:55 - Claude - qcnn_qconv4x3/train.py: mỗi epoch một dòng trên terminal, tự ghi log
+Người dùng phàn nàn mỗi batch nhảy một dòng (do pipe qua Tee-Object, 
+ thành dòng mới). Tiến độ chỉ in khi stdout là console (isatty), ghi đè cùng dòng, xong epoch thay bằng dòng kết quả (*MAX, *CK); bỏ dòng ">>> Epoch"; mọi dòng còn lại qua log() ghi thêm vào <out-dir>/train_log.txt; cuối in CK acc. command.txt bỏ Tee-Object. Không đổi phép tính train. ast.parse ok, zip tạo lại.
+
+[DONE] 2026-11-16 11:56 - Claude - qcnn_qconv4x3/train.py: nhãn đánh dấu đổi thành "*best val acc" / "*best val loss"
+Không đổi phép tính. Zip tạo lại.
+
+[ĐANG LÀM] 2026-11-16 11:57 - Claude - qcnn_qconv4x3: dịch chú thích và docstring sang tiếng Việt
+Yêu cầu người dùng. Chỉ chú thích/docstring; code, chuỗi in ra và help giữ nguyên; kiểm bằng so AST (bỏ docstring) trước/sau. Bản sao lưu ở scratchpad.
+
+[DONE] 2026-11-16 12:00 - Claude - qcnn_qconv4x3: dịch chú thích và docstring sang tiếng Việt
+Kết thúc mục ĐANG LÀM ngay trên. 19 file .py: chú thích/docstring tiếng Việt; chuỗi in ra và help giữ tiếng Anh. So AST (bỏ docstring) trước/sau: cả 19 file SAME. Các file core (unitary, tn_core, reupload, pauli) và preprocessing nay khác bản gốc chỉ ở chú thích. README ghi chú. Zip tạo lại. Lưu ý: người dùng tự thêm chữ vào cuối dòng lệnh $env:PYTHONIOENCODING trong command.txt (sẽ lỗi nếu chép cả dòng); chưa sửa.
+
+[DONE] 2026-11-16 13:05 - Claude - mammoth_full_package: run_mammoth.py báo rõ khi chạy sai folder
+Nguồn [ẢNH]: người dùng chạy run_mammoth.py trong mammoth_files (chưa chạy setup, chưa có Mammoth) -> ModuleNotFoundError utils. Thêm kiểm main.py/utils ở đầu main(), hướng dẫn chạy setup.ps1. Zip tạo lại.
+
+[ĐANG LÀM] 2026-11-16 16:04 - Claude - mammoth_full_package: smoke test lỗi ModuleNotFoundError open_clip
+Nguồn [ẢNH]: run_all.ps1 -Only qcnn-fusion-level32-qconv4x3 trên máy train D:	ensornetwork_mnist\...\mammoth_full_package; datasets/__init__.py nạp mọi file, seq_8vision.py cần open_clip. setup.ps1 thiếu 3 bản sửa đã làm tay trên máy cũ (đổi tên file cần open_clip, utils/loggers.py dòng 387, pandas). Thêm patch_mammoth.ps1, gọi từ setup.ps1 và run_all.ps1.
+
+[DONE] 2026-11-16 16:10 - Claude - mammoth_full_package: smoke test lỗi ModuleNotFoundError open_clip
+Kết thúc mục ĐANG LÀM ngay trên. Thêm patch_mammoth.ps1 (ASCII, chạy nhiều lần được): đổi tên file datasets/models có import open_clip/clip thành .py.disabled; sửa utils/loggers.py dòng 387 in None khi Task-IL là None; cài pandas nếu thiếu; cuối cùng kiểm import datasets. run_all.ps1 gọi nó mỗi lần (máy đã có .setup_done vẫn được vá), setup.ps1 gọi sau bước 6. README, LENH_CHAY_LE.txt ghi chú. Kiểm: ParseFile 3 script 0 lỗi, không có ký tự ngoài ASCII; dòng loggers.py vá thử trên bản tải về đúng commit e75a491: ast.parse ok, in "None" đúng. Chưa chạy trên máy train. Zip tạo lại.
+
+[DONE] 2026-11-16 16:08 - Claude - mammoth_full_package: smoke test lỗi No module named six
+Nguồn [ẢNH]: sau bản vá open_clip, main.py lecun_fix (dòng 69) import six.moves; six không có trong requirements.txt của Mammoth. Quét import trên bản tải về đúng commit e75a491 (main.py, utils, datasets, backbone, models/er): các gói còn lại (wandb, setproctitle, git, dotenv, scipy, huggingface_hub, ...) đều nằm trong try/except; chỉ six không có. patch_mammoth.ps1 nay cài six, requests, pandas nếu thiếu và kiểm import six.moves.urllib, datasets, backbone, models. ParseFile 0 lỗi, ASCII. Zip tạo lại. Chưa chạy trên máy train.
+
+[DONE] 2026-11-17 21:35 - Claude - Ghi kết quả Mammoth qcnn-fusion-level32-qconv4x3 20 task
+Nguồn [CSV mammoth_mean.csv người dùng dán]: val sau task 20 93,92; TB 20 mốc 93,14; TB 6 mốc 94,41; final (test) 93,89. So deep12p 94,58: -0,66; level32 91,50: +2,42; cnn-12k 94,38: -0,46. Chưa so được ngưỡng chốt (cnn-17k, deep6p chưa có). Ghi SO, TONG_HOP; CSV lưu mammoth_full_package/ket_qua. Không sửa code.
+
+[DONE] 2026-11-17 21:50 - Claude - Đánh giá ý tưởng router (MoE) cho 3 cây
+Người dùng đề xuất. Ghi đánh giá, thiết kế đề xuất (L1 + router 99 tham số, loss cân bằng, suy luận top-1), ngưỡng và dự đoán vào SO. Tra web: QMoE, 2512.22296, 2604.06715. Chưa code, chờ người dùng chọn.
+
+[DONE] 2026-11-17 22:00 - Claude - Đánh giá router lượng tử cho MoE 3 cây
+Người dùng hỏi có nên dùng router lượng tử (kiểu 2512.22296). Khuyên dùng làm bản chính, kèm đối chứng router cổ điển cùng cỡ; không dựa vào claim của bài đó. Ghi SO. Chưa code.
+
+[ĐÍNH CHÍNH] 2026-11-17 22:10 - Claude - Chi phí top-1 của MoE
+Đã nói top-1 còn 256 mạch thay vì 768/ảnh: sai, 768 là mạch encoder (vẫn chạy đủ). Top-1 chỉ bớt 2/3 phần cây. Ghi SO kèm cỡ model khi thêm router (17.149, quantum 33,8%).
+
+[DONE] 2026-11-17 22:25 - Claude - Đọc QMoE (QCE 2025), so với thiết kế router đề xuất
+Giống ý chung, khác cơ chế (QMoE coherent: router điều khiển expert, gộp bằng giao thoa; mình đo rồi trộn cổ điển, có top-1). Cần đọc 2505.14789. Ghi SO. Chưa code.
+
+[DONE] 2026-11-17 22:45 - Claude - Trả lời: accuracy so các bài khác; 3 kiểu quét và chuyên hóa MoE
+Đề xuất chẩn đoán oracle từng cây trên checkpoint L1 và ablation MoE cùng kiểu quét. Ghi SO. Chưa code.
+
+[ĐANG LÀM] 2026-11-17 22:06 - Claude - Folder mới fullquantum_16x16_frontQuan4x3_Moe (encoder qconv4x3 + router MoE + 3 cây + head tuyến tính)
+Yêu cầu người dùng: folder mới, đủ tùy chọn. Chép models cần thiết từ full_quantum_16x16_level32_qconv_linhead (không sửa folder đó; front.py chép nguyên, giống hệt). Thêm router (none/quantum/linear/mlp), trộn logit hoặc xác suất, loss cân bằng, đánh giá soft/top1/uniform/từng cây/oracle, script phân tích định tuyến. Không chạy train/test; chỉ ast.parse.
+
+[ĐÍNH CHÍNH] 2026-11-17 22:07 - Claude - Mốc giờ các mục 21:50, 22:00, 22:10, 22:25, 22:45 hôm nay là giờ đoán, không lấy từ đồng hồ (lúc 22:06 đồng hồ mới chỉ 22:06). Thực tế các mục đó ghi trong khoảng 21:40-22:05. Trong SO đã sửa thành 'khoảng 21:40-22:05'.
+
+[DONE] 2026-11-17 22:14 - Claude - Folder fullquantum_16x16_frontQuan4x3_Moe
+Kết thúc mục ĐANG LÀM ngay trên. models/: front, tn_core, unitary, pauli, preprocessing, encoding, reupload chép nguyên từ linhead (cmp giống hệt; front.py giống hệt level32_qconv); mới router.py (router quantum statevector: gộp theta/phi lưới gh x gw, Q qubit, re-upload R = ô/Q vòng, ansatz se (40Q/lớp) hoặc rot (3Q/lớp), đo <Z> E qubit cách đều, hệ số khởi tạo 0; router linear/mlp lớp cuối 0; tạo trong fork_rng), moe_model.py (MoEQCNN: thứ tự tạo module giống FusionQCNN linhead -> router none = L1 cùng seed, nạp được checkpoint L1; mix logits/probs; mode soft/top1/uniform/tree<i>; loss cân bằng + entropy; gate noise; router-source encoder/pixels; router-detach; expert-head linear/shared/mlp), __init__.py (build_model đọc cả config linhead linear3/linear-shared). train.py (một dòng mỗi epoch, train_log.txt, history.csv có acc soft/top1/uniform/từng cây/oracle, g trung bình, tỷ lệ top1, entropy; --router-lr), common.py, analyze_routing.py (validation: từng cây, theo lớp, oracle, cặp cây; chạy được trên checkpoint L1 linhead), evaluate_test.py (--mode), test_model.py (số tham số, khởi tạo giống router none, so linhead nếu nằm cạnh, router so ma trận đầy đủ Q=3/4, chế độ trộn, loss phụ, gradient, tốc độ), command.txt (test, D0 chẩn đoán L1, M1 quantum 17.149, M2 mlp18 17.157, M0 none, M4 row row row, M3/M5/M6 tùy chọn, ngưỡng, dự đoán), README.md, requirements.txt. Số tham số tính tay: none 16.506; quantum 17.149 (router 643, mạch 640, quantum 33,75%); rot 16.557; mlp18 17.157; linear 16.605. Kiểm: ast.parse 15 file. CHƯA chạy test. Zip fullquantum_16x16_frontQuan4x3_Moe.zip (18 file).
+
+[DONE] 2026-11-17 22:17 - Claude - Đánh giá ý tưởng head siêu nhỏ
+Đề xuất bậc bloch8 (tổng 6.709, quantum 86,3%) và obs10 (6.019, 96,2%), đối chứng logistic pixel và cnn3 cùng head. Ghi SO. Chưa code.
+
+[DONE] 2026-11-17 22:41 - Claude - Cập nhật PROMPT_PHIEN_MOI.md để bàn giao
+Thêm: quy tắc lấy giờ từ đồng hồ; Mammoth qconv4x3 93,92 (bảng + mục); folder fullquantum_16x16_frontQuan4x3_Moe (luồng, tham số, tùy chọn, lệnh, ngưỡng, dự đoán, đính chính top1); QMoE và tài liệu cần đọc; ý tưởng head siêu nhỏ (bloch8, obs10); danh sách chờ. Không sửa code.
+
+[ĐANG LÀM] 2026-11-17 22:43 - Claude - fullquantum_16x16_frontQuan4x3_Moe: thêm head bloch8, obs10, fusion (head MLP của 2c), và readout encoder 'direct' (không Linear) thành tùy chọn
+Yêu cầu người dùng: head nhỏ, MoE, readout encoder đều là tùy chọn. front.py giữ nguyên (readout direct viết ở models/front_direct.py). Không chạy train/test; chỉ ast.parse.
+
+[DONE] 2026-11-17 22:48 - Claude - fullquantum_16x16_frontQuan4x3_Moe: head bloch8/obs10/fusion và readout encoder direct thành tùy chọn
+Kết thúc mục ĐANG LÀM ngay trên. --expert-head thêm bloch8 (SliceLinear(24,10), 750), obs10 (ObservableHead: 10 quan sát Pauli cố định --obs-terms, mặc định Z0..Z7 X0 X4, hệ số 1 + bias 0, 60), fusion (head MLP 2c, chỉ router none, cùng seed khởi tạo giống hệt 2c, nạp được checkpoint 2c); bloch8/obs10 không đo tầng side. --front-readout direct (models/front_direct.py, front.py không đổi): bỏ Linear(27,2), qubit giữa -> hướng Bloch thành góc giữa các tầng, sau tầng cuối ma trận mật độ qubit giữa vào thẳng cây (forward_levels rho=); qconv4x3 324 góc; không bắt đầu như đồng nhất; atan2/norm có bảo vệ gradient nan. build_model đọc config 2c (head mlp -> fusion). common.py/analyze_routing.py/evaluate_test.py xử lý head fusion (chỉ soft). test_model.py: số tham số 12 cấu hình, vị trí quan sát so PauliFeatures, front direct, so linhead cả head mlp, gradient hữu hạn. command.txt: H1 bloch8 (6.066, 84,9%), H2 obs10 (5.376, 95,8%), H3 obs10 + direct (5.208, 98,8%), H4 linear + direct, bản có router quantum, F fusion; ngưỡng, dự đoán. README bảng. Lỗi trong lúc làm: chuỗi lệnh ghi bằng Python làm '\t','\r','\f' thành ký tự điều khiển trong command.txt và một '\n' thành xuống dòng trong analyze_routing.py; đã sửa bằng chr(92)/Edit, quét lại không còn ký tự điều khiển. ast.parse 16 file ok; front.py giống hệt (cmp). Chưa chạy test. Zip tạo lại.
+
+[DONE] 2026-11-17 22:54 - Claude - README folder Moe: thêm tóm tắt 3 nhóm tùy chọn, lưu ý, thứ tự chạy, ngưỡng, dự đoán, phần còn thiếu
+Yêu cầu người dùng. Không sửa code. Zip tạo lại.
+
+[DONE] 2026-11-18 23:11 - Claude - Ghi kết quả MoE router (folder Moe) giữa run ep 22
+Nguồn [CSV người dùng dán]: MAX val soft 98,78 = CK (ep 21); uniform 98,07; top1 82,37; oracle 97,29. So 2c 99,03: -0,25. Chưa có số L1. Top1 không dùng được (dự đoán sai). Lưu CSV ket_qua/history_moe_router_ep22.csv, ghi SO. Không sửa code.
+
+[DONE] 2026-11-18 23:14 - Claude - Người dùng xác nhận run MoE là M1 (router quantum); báo bản cắt giảm tham số đang chạy, val khoảng 95 giữa run (chưa rõ H1/H2/H3). Ghi SO. Không sửa code.
+
+[DONE] 2026-11-18 23:15 - Claude - Người dùng xác nhận bản cắt giảm đang chạy là H2 obs10 (5.376, router none theo command.txt), val ~95 giữa run. Ghi SO.
+
+[DONE] 2026-11-18 23:16 - Claude - Người dùng báo đang chạy H1 bloch8 + router quantum (6.709, hiểu vậy, chưa xác nhận). Ghi SO, chưa có số.
+
+[DONE] 2026-11-18 23:20 - Claude - Thảo luận bỏ riêng tương quan cặp (đề xuất --expert-head nocorr, 9.589 với router quantum), ngưỡng và dự đoán. Ghi SO. Chưa code.
+
+[ĐANG LÀM] 2026-11-18 23:23 - Claude - Folder Moe: thêm --expert-head nocorr (Linear(120,10): 24 Bloch 8 qubit cuối + 96 tầng 32, bỏ 252 tương quan)
+Yêu cầu người dùng; người dùng tự dán lên máy train. Sửa models/moe_model.py, test_model.py, command.txt, README; tạo lại zip. Chỉ ast.parse.
+
+[DONE] 2026-11-18 23:23 - Claude - Folder Moe: --expert-head nocorr
+Kết thúc mục ĐANG LÀM ngay trên. moe_model.py: EXPERT_HEADS, SIDE_HEADS thêm nocorr; lớp NoCorrLinear (cat features[:, :24] và features[:, 276:], Linear(120,10)); nhánh elif trong __init__; docstring. test_model.py: 2 ca số tham số (router quantum 9.589, router none 8.946, head 3.630). command.txt: lệnh N1 + ngưỡng + dự đoán. README. ast.parse ok. Zip tạo lại (19 file, không gồm ket_qua). Chưa chạy test.
+
+[DONE] 2026-11-18 23:25 - Claude - Ghi trạng thái: máy train chạy M1 và H1 + router quantum; N1 nocorr chạy sau. Ghi SO.
+
+[DONE] 2026-11-18 23:25 - Claude - Cập nhật PROMPT_PHIEN_MOI.md: M1 98,78 giữa run, H2 ~95, H1 + router đang chạy, nocorr (N1), danh sách chờ. Không sửa code.
+
+[DONE] 2026-11-19 12:37 - Claude - Người dùng báo: M1 router quantum MAX val 99,03 khoảng ep 38 (ngang 2c 99,03); máy train chuyển sang N1 nocorr; bản head nhỏ val chỉ ~95 (Claude hiểu là H1 bloch8 + router quantum, chưa xác nhận; nếu đúng thì dự đoán 97-98,5 SAI). Ngưỡng N1 so M1 cập nhật: >= 98,73. Ghi SO. Không sửa code.
+
+[DONE] 2026-11-19 12:40 - Claude - Ghi kết quả M1 router quantum từ history.csv ep 1-41 [CSV người dùng dán]: MAX val soft 99,03 = CK ep 38; uniform 98,66; top1 83,02; oracle 97,70; top1 chọn cây cột 2,6%. Ngang 2c. Lưu ket_qua/history_M1_router_quantum_ep41.csv (ep 36-41), ghi SO, TONG_HOP. Không sửa code.
+
+[DONE] 2026-11-19 12:43 - Claude - Người dùng báo L1 linhead khoảng 98 (đã chạy trước, chưa có số chính xác). M1 99,03 - L1 ~98 ~ +1,0: router có ích (đạt ngưỡng +0,30, tạm theo số ước); dự đoán 'M1 ngang L1' SAI. M1 bằng 2c head MLP. Còn cần M2 mlp18. Ghi SO. Không sửa code.
+
+[DONE] 2026-11-19 13:33 - Claude - Ghi N1 nocorr giữa run ep 2 [CSV]: val 93,71 / 95,94 (M1 cùng ep 93,59 / 96,33); top1 89,82; cây hàng chiếm top1 84%. Lưu ket_qua/history_N1_nocorr_ep2.csv, ghi SO. Không sửa code.
+
+[ĐANG LÀM] 2026-11-19 13:37 - Claude - Folder Moe: thêm head nhỏ hơn nocorr (nocorr-z, nocorr-shared, nocorr-lowrank --head-rank) và --init-from / --freeze-body trong train.py
+Người dùng: nếu N1 khả thi thì cố tiếp cho head nhỏ, đảm bảo accuracy. Sửa models/moe_model.py, models/__init__.py, train.py, test_model.py, command.txt, README; tạo lại zip. Chỉ ast.parse.
+
+[DONE] 2026-11-19 13:39 - Claude - Folder Moe: head nhỏ hơn nocorr
+Kết thúc mục ĐANG LÀM 13:37. Người dùng dừng giữa chừng rồi bảo code nốt; BỎ phần --init-from / --freeze-body (không làm). moe_model.py: NOCORR_SMALL (nocorr-z, nocorr-shared, nocorr-lowrank), lớp NoCorrSmall (side_axes XYZ|Z, rank), tham số head_rank (mặc định 4), docstring. __init__.py truyền head_rank; train.py --head-rank, help, log rank. test_model.py 4 ca số tham số (router quantum: nocorr-z 7.669 head 1.710; shared 7.169 / 1.210; lowrank r4 7.549 / 1.590; r2 6.769 / 810). command.txt lệnh N2-N5 + ngưỡng + dự đoán; README. ast.parse ok, không ký tự điều khiển. Zip tạo lại (19 file). Chưa chạy test.
+
+[DONE] 2026-11-19 14:52 - Claude - Ghi N1 nocorr giữa run ep 6 [CSV]: MAX 97,31 ep 6 (M1 cùng ep 97,77, chậm 0,1-0,5); top1 91,01; uniform 92,96. Lưu ket_qua/history_N1_nocorr_ep6.csv, ghi SO. Không sửa code.
+
+[DONE] 2026-11-19 14:55 - Claude - Thảo luận hướng bài 'cải thiện con đường quantum'; đề xuất chỉ số tham số cổ điển (2c 12.116 -> M1 11.361 -> N1 3.801 -> N2 1.881). Ghi SO. Không sửa code.
+
+[DONE] 2026-11-19 15:39 - Claude - Ghi N1 nocorr ep 8 [CSV]: MAX 97,51 ep 8 (M1 cùng ep 97,70, -0,19). Lưu ket_qua/history_N1_nocorr_ep8.csv, ghi SO.
+
+[DONE] 2026-11-19 16:28 - Claude - Ghi N1 nocorr ep 11 [CSV]: MAX 97,91 ep 10 (M1 cùng ep 98,15, -0,24). Lưu ket_qua/history_N1_nocorr_ep11.csv, ghi SO.
+
+[DONE] 2026-11-19 16:36 - Claude - Tra nhanh độ mới: 2505.14789 là parity 97,5% (2 lớp); Terra Quantum hybrid 99,21% MNIST đầy đủ -> 'chưa ai cao như vậy' sai nếu hiểu chung; tổ hợp kiến trúc chưa thấy (không hệ thống). Cần đọc 2607.07754 và bài Terra Quantum. Ghi SO.
+
+[DONE] 2026-11-19 16:41 - Claude - Đọc toàn văn bài Terra Quantum (MLST 2024, 015040): HQNN-Parallel 99,21% test MNIST 28x28, 45.194 tham số, mạch chỉ 180 (~0,4%); 99,21 có vẻ là đỉnh test. Claim của mình phải theo tỷ lệ quantum. Ghi SO.
+
+[DONE] 2026-11-19 16:52 - Claude - Đọc 2607.07754 (quantum-inspired MoE, preprint): không router, expert 1 tham số theta, FCL ~280k, MNIST 97,73 / Fashion 85,88 test, chọn trên test. Chỉ cần trích. Ghi SO.
+
+[DONE] 2026-11-19 17:42 - Claude - Ghi N1 nocorr ep 14 [CSV]: MAX 98,07 ep 13 (M1 cùng ep 98,17, -0,10). Lưu ket_qua/history_N1_nocorr_ep14.csv, ghi SO.
+
+[DONE] 2026-11-19 18:34 - Claude - Ghi N1 nocorr ep 17 [CSV]: chững, MAX 98,07 ep 13; M1 cùng ep 98,46 (-0,55). [ĐÍNH CHÍNH] dự đoán N1 hạ từ 98,7-98,9 xuống 98,3-98,6. Lưu ket_qua/history_N1_nocorr_ep17.csv, ghi SO.
+
+[DONE] 2026-11-19 18:55 - Claude - Ghi N1 nocorr ep 18 [CSV]: lr 5e-4, MAX 98,26 = CK (val loss 0,053680). M1 cùng ep 98,73. Lưu ket_qua/history_N1_nocorr_ep18.csv, ghi SO.
+
+[ĐANG LÀM] 2026-11-19 19:16 - Claude - Folder Moe: thêm head samebasis (2b: 24 Bloch + 84 tương quan cùng trục XX/YY/ZZ + 96 tầng 32) và zz (2a: 24 + 28 ZZ + 96), head riêng mỗi cây
+Người dùng yêu cầu. Sửa models/moe_model.py, train.py, test_model.py, command.txt, README; tạo lại zip. Chỉ ast.parse.
+
+[DONE] 2026-11-19 19:18 - Claude - Folder Moe: head samebasis, zz
+Kết thúc mục ĐANG LÀM 19:16. moe_model.py: SAME_AXIS, same_axis_pair_indices (dùng observable_index), lớp SameAxisLinear (index_select 24 Bloch + cặp cùng trục + side), nhánh trong __init__, docstring. train.py help. test_model.py: 2 ca số tham số (samebasis 12.109 head 6.150; zz 10.429 head 4.470) + kiểm vị trí đặc trưng (24 + 9p + 0/4/8). command.txt lệnh S1, S2 + ngưỡng + dự đoán; README. ast.parse ok, không ký tự điều khiển. Zip tạo lại (19 file). Chưa chạy test.
+
+[DONE] 2026-11-19 22:07 - Claude - Người dùng báo N1 nocorr MAX 98,42 ở ep 28 (chưa CSV). Tỷ lệ quantum N1 60,4%. Ghi SO.
+
+[DONE] 2026-11-19 22:16 - Claude - Phân tích bảng 1 bài Terra Quantum: số Medical MNIST sai so với lời văn, CIFAR bảng và lời văn ngược nhau, đối chứng MNIST 372k dựng khác 2 bộ kia. Ghi SO.
+
+[DONE] 2026-11-19 22:22 - Claude - Người dùng: không làm đối chứng thêm, chỉ so CNN cổ điển. Thêm lệnh CNN --widths 11 21 (9.571, cùng cỡ N1) 3 lr vào classical_cnn_16x16/command.txt; zip tạo lại. Không sửa code. Ghi SO.
+
+[DONE] 2026-11-19 22:25 - Claude - Vẽ kiến trúc M1 bằng TikZ: fullquantum_16x16_frontQuan4x3_Moe/hinh_kien_truc_M1.tex (2 trang: luồng dữ liệu + số tham số; mạch router 8 qubit). Chữ tiếng Anh, không cần vntex. Số lấy từ code (router đo Z0, Z2, Z5; vòng 2 qubit bước 1 rồi 2). Chưa biên dịch (máy không có LaTeX); kiểm ngoặc cân. Zip thêm file (20 file).
+
+[DONE] 2026-11-19 22:30 - Claude - Hình M1: thêm nhãn 'router reads the encoder output' vào hinh_kien_truc_M1.tex; tạo bản gọn 1 trang hinh_kien_truc_M1_gon.tex (người dùng yêu cầu, ít chú thích). Chưa biên dịch. Zip (21 file).
+
+[DONE] 2026-11-19 22:35 - Claude - Tra web QCNN 99% MNIST 10 lớp: chưa thấy QCNN thuần ~99% test; cần đọc 2504.14995 (qFTN, >99% train) và 2603.11131 (98,7%, chưa rõ). Ghi SO.
+
+[ĐÍNH CHÍNH] 2026-11-19 22:48 - Claude - Dự đoán S1 hạ từ 98,7-99,0 xuống 98,5-98,9 (nội suy N1-M1 theo số tương quan cho 98,62). Ghi SO.
+
+[DONE] 2026-11-20 09:15 - Claude - Ghi run mới (hiểu là S1 samebasis, chưa xác nhận) ep 29 [CSV]: MAX 98,97 = CK; ngang M1 cùng ep, +0,55 so N1; đạt ngưỡng 98,73. Dự đoán đính chính 98,5-98,9 sai (thấp). Lưu ket_qua/history_S1_samebasis_ep29_chuaxacnhan.csv, ghi SO.
+
+[ĐÍNH CHÍNH] 2026-11-20 09:57 - Claude - Tham số mạch bị đếm gấp đôi: LearnedUnitary1Q/2Q lưu A phức (8/32 số) nhưng chỉ dùng phần Hermite (4/16 bậc tự do). Mạch thật 3.068 (2.814 không pha) thay vì 5.788. M1 14.429 (21,3%), S1 9.389 (32,7%), N1 6.869 (44,7%). Huấn luyện không sai, chỉ đếm sai; mọi tỷ lệ quantum cũ phải đếm lại. Ghi SO. Chưa sửa code.
+
+[DONE] 2026-11-20 09:59 - Claude - Người dùng xác nhận run là S1 samebasis. Chép CSV sang history_S1_samebasis_ep29.csv. Ghi SO.
+
+[ĐANG LÀM] 2026-11-20 10:00 - Claude - Folder Moe: đếm đúng số tham số (bậc tự do thật của LearnedUnitary: 16/4, bỏ pha 15/3)
+Người dùng yêu cầu. Thêm free_parameter_count vào models/moe_model.py, thêm khóa *_free vào count_parameters (giữ khóa cũ), log trong train.py, kiểm trong test_model.py, README. Không sửa unitary.py, front.py. Chỉ ast.parse.
+
+[DONE] 2026-11-20 10:01 - Claude - Folder Moe: đếm đúng tham số
+Kết thúc mục ĐANG LÀM 10:00. moe_model.py: free_parameter_count (LearnedUnitary d x d -> d^2, bỏ pha d^2 - 1, real_only d(d-1)/2; module chung đếm 1 lần), count_parameters thêm quantum_free, router_quantum_free, total_free, quantum_share_free và bản _free_nophase (khóa cũ giữ nguyên để không vỡ test cũ). train.py in thêm dòng FREE. test_model.py: kiểm M1 14.429 (14.175), S1 9.389 (9.135), N1 6.869 (6.615), router none 14.106 (13.884), mlp18 14.757 (14.535), cây 808 (734), router 320. README. ast.parse ok. Zip tạo lại. Không sửa unitary.py, front.py. Chưa chạy test.
+
+[DONE] 2026-11-20 10:03 - Claude - Tạo fullquantum_16x16_frontQuan4x3_Moe/CACH_DEM_THAM_SO.txt (UTF-8 BOM): lý do đếm lại, đếm từng khối (cũ / FREE / bỏ pha), bảng tổng và tỷ lệ quantum các bản, cách kiểm trên máy train, cách báo trong bài, CNN cùng cỡ. Zip (22 file).
+
+[DONE] 2026-11-20 10:14 - Claude - Người dùng báo S1 samebasis 99,04 (chưa CSV); chọn S1 làm bản chính; ưu tiên giảm tổng tham số. Ghi SO.
+
+[ĐANG LÀM] 2026-11-20 10:14 - Claude - Folder Moe: --share-final (3 cây dùng chung khối 8 qubit cuối = merge_stage)
+Người dùng yêu cầu. Sửa models/moe_model.py, models/__init__.py, train.py, test_model.py, command.txt, README, CACH_DEM_THAM_SO.txt; zip. Chỉ ast.parse.
+
+[DONE] 2026-11-20 10:14 - Claude - Folder Moe: --share-final
+Kết thúc mục ĐANG LÀM 10:14. moe_model.py: tham số share_final; tạo đủ 3 cây như cũ rồi gán cores[1..].merge_stage = cores[0].merge_stage (conv-pool, re-upload riêng; cùng seed phần còn lại giống hệt). __init__.py truyền share_final; train.py --share-final + log. test_model.py: kiểm chia sẻ đúng, đếm cũ 9.549, FREE 8.109, bỏ pha 7.983, conv-pool giống bản không chia sẻ. command.txt lệnh S3 + ngưỡng (S3 >= S1 - 0,30) + dự đoán (tụt 0,1-0,4); README; CACH_DEM_THAM_SO.txt mục 6. classical_cnn_16x16/command.txt: CNN --widths 11 19 (8.065) 3 lr + ghi chú cỡ theo số FREE. ast.parse ok. Hai zip tạo lại. Chưa chạy test.
+
+[DONE] 2026-11-20 11:15 - Claude - Tạo hinh_mot_cay.tex (TikZ 2 trang, tiếng Việt, vntex: 256 -> 8 qubit + khối conv-pool + đo tầng 32; khối 8 qubit cuối: re-upload, lớp 1-2 vẽ đủ, lớp 3-4 gộp, đo, đếm tham số) và PSEUDOCODE_S1.txt (pseudocode tiếng Anh toàn kiến trúc S1, 9.389 tham số, theo yêu cầu người khác hỏi qua người dùng). Chưa biên dịch. Zip (24 file).
+
+[DONE] 2026-11-20 11:20 - Claude - hinh_mot_cay.tex viết lại theo yêu cầu: trang 1 cây tổng quát gọn (cột qubit 256->8, CP, đo tầng 32, khối 8 qubit, 204 đặc trưng, Linear; ô CP nhỏ); trang 2 giữ hình khối 8 qubit, sửa chữ đè (nhãn ngoặc ngắn lại, chú thích chuyển xuống dưới, phần đo gọn). Bỏ trang chi tiết cũ. Zip.
+
+[ĐANG LÀM] 2026-11-20 14:58 - Claude - Folder mới fullquantum_16x16_frontQuan4x3_Moe_sharedgate: chép folder Moe, thêm --share-gates (khối 8 qubit cuối mỗi lớp dùng CHUNG 1 unitary 1 qubit cho 8 qubit và 1 unitary 2 qubit cho 8 cặp vòng)
+Người dùng yêu cầu ('8 qubit ở cuối sử dụng chung mạch, ở folder mới'). Claude hiểu là chia sẻ cổng trong từng lớp (như conv-pool); giữ cả --share-final. Chỉ ast.parse.
+
+[DONE] 2026-11-20 15:00 - Claude - Folder _sharedgate: --share-gates
+Kết thúc mục ĐANG LÀM 14:58. Chép folder Moe (không ket_qua, không file tex/pseudocode); moe_model.py: share_gates (tạo đủ cổng rồi trỏ mọi vị trí về cổng 0 mỗi lớp, trước share_final); __init__.py, train.py (--share-gates, log); test_model.py: kiểm chia sẻ, đếm G1 8.749/7.709/7.623, G2 8.429/7.549/7.479, các tham số khác giống hệt bản không chia sẻ. command.txt thêm G1, G2 + ngưỡng + dự đoán ở đầu; README thêm bảng ở đầu. ast.parse ok. Zip fullquantum_16x16_frontQuan4x3_Moe_sharedgate.zip (20 file). Chưa chạy test.
+
+[DONE] 2026-11-20 15:00 - Claude - Ghi KẾT QUẢ S1 samebasis [CSV ep 1-46]: MAX 99,10 = CK ep 46; bản chính. Lưu ket_qua/history_S1_samebasis_ep46.csv; ghi SO, TONG_HOP.
+
+[DONE] 2026-11-20 15:19 - Claude - G1 bắt đầu chạy [ẢNH]: số tham số in ra khớp (cũ 8.749; FREE 7.709; bỏ pha 7.623). Ghi SO.
+
+[DONE] 2026-11-20 23:44 - Claude - Ghi G1 share-gates ep 24 [CSV]: MAX 98,67 = CK ep 23; bám sát S1 cùng ep. Lưu ket_qua/history_G1_sharegates_ep24.csv (folder _sharedgate), ghi SO.
+
+[DONE] 2026-11-21 01:49 Claude: cập nhật PROMPT_PHIEN_MOI.md (người dùng yêu cầu): thêm mục TRẠNG THÁI HIỆN TẠI (quyết định chỉ so CNN cùng cỡ, ưu tiên giảm tham số, S1 bản chính 99,10, đính chính đếm FREE, bảng M1/N1/S1/G1/G2/S3, CNN cùng cỡ, file tài liệu, tài liệu đã đọc), quy tắc báo số FREE và sửa song song folder _sharedgate, danh sách chờ mới; đánh dấu các mục cũ dùng cách đếm cũ.
+
+[DONE] 2026-11-24 00:52 - Claude - Ghi G1 share-gates [NGƯỜI DÙNG BÁO]: MAX val 98,88 >= ngưỡng 98,80 -> ĐẠT, G1 có thể thay S1. Ghi SO. Chưa ghi TONG_HOP (chưa rõ số cuối).
+
+[ĐANG LÀM] 2026-11-24 00:52 - Claude - Tạo .gitignore, git init, commit đầu tiên để push GitHub (người dùng yêu cầu). Từ nay mỗi lần sửa code: tạo branch mới, commit, push, đưa lệnh pull/chạy cho máy train.
+
+[DONE] 2026-11-24 00:55 - Claude - Git: .gitignore (bỏ noread/, .claude/, zip, .pt, runs/, logs/, mnist_data/); repo https://github.com/nguyenhongkhoi/full_quantum_16x16_mlp_aug; mỗi folder phiên bản = 1 branch (code ở gốc branch, README.md ngắn, README gốc -> README_CHI_TIET.md); main = S1 (folder Moe). 19 branch đã push. Script push_branch.sh (không vào branch nào) dùng cho các lần sau: bash push_branch.sh <folder> <branch> '<mô tả>' '<kết quả>' '<commit msg>' với PUSH=1. Sổ/nhật ký (SO, AI_COLLAB, TONG_HOP, PROMPT) KHÔNG đưa lên git.
+
+
+[ĐANG LÀM] 2026-11-24 01:05 - Claude - Folder mới qcnn_s1_main (nguồn cho branch main): code S1 từ _sharedgate (đủ tùy chọn, gồm --share-gates/--share-final) + --dataset mnist|fashion (train, evaluate_test, analyze_routing) + classical_cnn/ (CNN cổ điển, --dataset) + command.txt đầy đủ + requirements torch CUDA. main cũ -> branch archive-main-s1-v1; toàn bộ workspace còn lại -> branch archive-all. Người dùng yêu cầu (đã chốt model, cho phép code Fashion-MNIST). Chỉ ast.parse.

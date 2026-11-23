@@ -1,0 +1,32 @@
+# CHẠY LẺ TỪNG RUN (gõ tay). Chạy setup một lần trước:
+#   powershell -ExecutionPolicy Bypass -File .\setup.ps1
+# Đã chạy setup trước bản 2026-11-16 16:10 (lỗi No module named 'open_clip'): chạy thêm một lần
+#   powershell -ExecutionPolicy Bypass -File .\patch_mammoth.ps1
+# Sau đó, trong PowerShell, từ folder mammoth_full_package:
+cd .\mammoth
+$env:PYTHONIOENCODING = "utf-8"
+..\.venv\Scripts\Activate.ps1
+# (Nếu Activate báo lỗi ExecutionPolicy: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass  rồi chạy lại dòng trên)
+
+# Mỗi lệnh = 1 run 20 task, log ở mammoth\logs\log_<name>.txt. Không chạy lại cùng --name khi run cũ còn log
+# dở (log được ghi nối thêm); đổi tên log cũ trước nếu muốn chạy lại.
+
+# ---- CNN cổ điển ----
+python run_mammoth.py --name cnn5k_er_buf5120_seed0_full --backbone cnn-5k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name cnn12k_er_buf5120_seed0_full --backbone cnn-12k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name cnn17k_er_buf5120_seed0_full --backbone cnn-17k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name cnn19k_er_buf5120_seed0_full --backbone cnn-19k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name cnn30k_er_buf5120_seed0_full --backbone cnn-30k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name cnn50k_er_buf5120_seed0_full --backbone cnn-50k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name cnn85k_er_buf5120_seed0_full --backbone cnn-85k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name mlp19k_er_buf5120_seed0_full --backbone mlp-19k --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# ---- Quantum tốt nhất (17.264) và đối chứng encoder CNN cùng cỡ (17.272) ----
+python run_mammoth.py --name qcnnfusionlevel32qconv4x3_er_buf5120_seed0_full --backbone qcnn-fusion-level32-qconv4x3 --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python run_mammoth.py --name qcnnfusionlevel32deep6p_er_buf5120_seed0_full --backbone qcnn-fusion-level32-deep6p --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# ---- Sàng lọc nhanh 6 task (thêm --end_at 6, đổi --name, test cuối được bỏ qua) ----
+python run_mammoth.py --name qcnnfusionlevel32qconv4x3_er_buf5120_seed0 --end_at 6 --backbone qcnn-fusion-level32-qconv4x3 --dataset rot-mnist --model er --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# ---- Xuất CSV (mammoth_mean.csv, mammoth_tasks.csv trong folder mammoth) ----
+python export_mammoth_logs.py

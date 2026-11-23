@@ -1,0 +1,47 @@
+run_id,giao_thuc,nhom,tong_tham_so,tham_so_quantum,so_voi,thay_doi,ket_qua_chinh,nguon_so,file_can_gui,trang_thai
+baseline_goc,cu_3phase,QCNN cây,,,,"Readout linear, không aug, cấu hình chưa rõ",CK 97.71,LOG,chưa rõ thư mục,Xong
+tree1q,cu_3phase_aug,QCNN cây,3060,,R0,"Cây 1 qubit, 2 nhánh","CK 96.85, MAX 96.91",ẢNH,full_quantum_16x16_morton_bond2\runs\tree1q\history_full_quantum_mlp_aug.csv,Xong
+b0,cu_3phase_aug,Cây bond-2,866,256,,"Morton bond-2, 1 nhánh, head Linear(60,10)",chưa có số trong sổ,,full_quantum_16x16_morton_bond2\runs\b0\history_full_quantum_mlp_aug.csv,Chưa rõ
+b1,cu_3phase_aug,Cây bond-2,1922,256,b0,"Thêm tap 4x4, Linear(15,6) dùng chung, Linear(156,10)",chưa có số trong sổ,,full_quantum_16x16_morton_bond2\runs\b1\history_full_quantum_mlp_aug.csv,Chưa rõ
+b2,cu_3phase_aug,Cây bond-2,3066,256,b1,"Head 156->16->10, LayerNorm, GELU","CK 97.10, MAX 97.15",ẢNH,full_quantum_16x16_morton_bond2\runs\b2\history_full_quantum_mlp_aug.csv,Xong
+b2_shift02,cu_3phase_aug,Cây bond-2,3066,256,b2,"Thêm lượt dịch vòng 2 pixel, cùng gate và head, trung bình logits","CK 97.47, MAX 97.54",ẢNH,full_quantum_16x16_morton_bond2\runs\b2_shift02\history_full_quantum_mlp_aug.csv,Xong
+R0,cu_3phase_aug,QCNN cây,12420,1616,,"2 nhánh row và morton, cây 1 qubit, side tap, stage 8 qubit, re-upload ở phase 3","CK 98.32, MAX 98.34; ep 1 94.38",ẢNH và CSV,full_quantum_16x16_2branch_multiscale_mlp16\runs\run_2branch_multiscale\history_full_quantum_mlp_aug.csv,Xong
+balanced,cu_3phase_aug,QCNN cây,12420,1616,R0,Gate conv khởi tạo gần sqrt(iSWAP),CK đến ep 41 98.33; ep 1 93.55,CSV,full_quantum_16x16_r0_improved\runs\balanced\history_full_quantum_mlp_aug.csv,Đến ep 41
+fusion2,cu_3phase_aug,QCNN cây,12202,,R0,"Một MLP chung đọc đặc trưng cả 2 nhánh, thay trung bình logits","CK 98.06 (ep 46), MAX 98.08",CSV,full_quantum_16x16_r0_improved\runs\fusion2\history_full_quantum_mlp_aug.csv,Đến ep 46
+fusion3,cu_3phase_aug,QCNN cây,18194,,R0,"3 nhánh row, column, morton, fusion, có side tap","CK 98.33 (ep 45), MAX 98.43",CSV,full_quantum_16x16_r0_improved\runs\fusion3\history_full_quantum_mlp_aug.csv,Đến ep 55
+fusion_cu,cu_3phase_aug,QCNN cây,19202,4824,mlp16_3nhanh,"3 nhánh row, column, morton; mỗi nhánh nén 276->16, MLP chung 48->16->10; không side tap","CK 98.70, MAX 98.72",CSV,noread\full_quantum_16x16_3scan_fusion_mlp16\runs\3scan_fusion_mlp16_16x16\history_full_quantum_mlp_aug.csv,Đến ep 64
+mlp16_3nhanh,cu_3phase_aug,QCNN cây,18726,4824,,"3 nhánh, mỗi nhánh một MLP-16, trung bình logits, không dropout",MAX khoảng 98.63,BÁO,chưa rõ thư mục,Số giữa run
+mlp16_dropout,cu_3phase_aug,QCNN cây,18726,4824,mlp16_3nhanh,Dropout 0.1,MAX khoảng 98.52,BÁO,chưa rõ thư mục,Đến ep 41
+kd_mlp16,cu_3phase_aug,QCNN cây,18726,,mlp16_3nhanh,Knowledge distillation,MAX khoảng 98.21,BÁO,chưa rõ thư mục,Đến ep 31
+mlp256_3nhanh,cu_3phase_aug,QCNN cây,226806,,mlp16_3nhanh,"Head MLP-256, aug 8 độ","CK 98.80, MAX 98.84",LOG,runs\mlp_aug_3phase (đã có trong workspace),Xong
+input32,cu_3phase_aug,QCNN cây,,,,Input 32x32 + 3 nhánh,khoảng 98.6,BÁO,không có log,Không có log
+s1_p8,cu_3phase_aug,Ô vướng víu,2522,,b2,"Ô 2x4 = 8 qubit, statevector, giữ 2 qubit mỗi ô, cây bond-2","CK 96.47, MAX 96.55 (ep 46)",CSV,full_quantum_16x16_patch_entangled\runs\s1_p8\history_full_quantum_mlp_aug.csv,Người dùng dừng
+s2_p12,cu_3phase_aug,Ô vướng víu,2538,,s1_p8,Ô 3x4 = 12 qubit,MAX 96.78,ẢNH,full_quantum_16x16_patch_entangled\runs\s2_p12\history_full_quantum_mlp_aug.csv,Người dùng dừng
+s3_ru2,cu_3phase_aug,Ô vướng víu,2602,,s2_p12,Re-upload 2 vòng,"CK 97.07, MAX từ 97.12",ẢNH và CSV,full_quantum_16x16_patch_entangled\runs\s3_ru2\history_full_quantum_mlp_aug.csv,Đến ep 70
+s9_meas,cu_3phase_aug,Quanvolution,2546,64,s2_p12,"Đo 53 Pauli mỗi ô, bỏ cây; quanvolution + MLP","CK 98.09, MAX 98.10",ẢNH và CSV,full_quantum_16x16_patch_entangled\runs\s9_meas\history_full_quantum_mlp_aug.csv,Xong
+s9_meas_frozen,cu_3phase_aug,Quanvolution,2546,64,s9_meas,"Gate đóng băng, chỉ học 2.482 tham số",CK 95.77,ẢNH,thư mục do người dùng đặt,Xong
+s9_meas_random,cu_3phase_aug,Quanvolution,2546,64,s9_meas,Khởi tạo random thay balanced,"MAX hết phase 2 97.37, dừng ep 29",ẢNH,thư mục do người dùng đặt,Người dùng dừng
+c0_pixel,cu_3phase_aug,Đối chứng cổ điển,2318,0,s9_meas,"Bỏ mạch, đọc thẳng pixel",MAX hết phase 2 95.65,ẢNH,full_quantum_16x16_quantum_audit\runs\c0_pixel\history_full_quantum_mlp_aug.csv,Hết phase 2
+c1_encoding,cu_3phase_aug,Đối chứng cổ điển,2434,0,c0_pixel,"Chỉ đặc trưng mã hóa sin, cos, không gate",MAX hết phase 2 97.13,ẢNH,full_quantum_16x16_quantum_audit\runs\c1_encoding\history_full_quantum_mlp_aug.csv,Hết phase 2
+c2_product,cu_3phase_aug,Đối chứng không vướng víu,2514,,s9_meas_random,"Gate dạng tích, không vướng víu, init random",MAX 97.22 (ep 24),ẢNH,full_quantum_16x16_quantum_audit\runs\c2_product\history_full_quantum_mlp_aug.csv,Hết phase 2
+c4_local_mlp,cu_3phase_aug,Đối chứng cổ điển,2542,0,s9_meas,MLP nhỏ mỗi ô thay cho mạch,"CK 98.19, MAX 98.22; 3 seed hết phase 2 TB 98.00",ẢNH,full_quantum_16x16_quantum_audit\runs\c4_local_mlp\history_full_quantum_mlp_aug.csv,Xong
+cnn1k,cu_3phase_aug,CNN,934,0,,CNN cổ điển,"CK 96.53, MAX 96.55",ẢNH,full_quantum_16x16_morton_bond2\runs\cnn1k\history_full_quantum_mlp_aug.csv,Xong
+cnn2k,cu_3phase_aug,CNN,1990,0,,CNN cổ điển,"CK 98.09, MAX 98.12",CSV,full_quantum_16x16_morton_bond2\runs\cnn2k\history_full_quantum_mlp_aug.csv,Đến ep 52
+cnn3k,cu_3phase_aug,CNN,2988,0,,CNN cổ điển,"CK 98.64, MAX 98.64",ẢNH,full_quantum_16x16_morton_bond2\runs\cnn3k\history_full_quantum_mlp_aug.csv,Xong
+cnn5k,cu_3phase_aug,CNN,5578,0,,CNN cổ điển,"CK 99.04, MAX 99.11",CSV,full_quantum_16x16_morton_bond2\runs\cnn5k\history_full_quantum_mlp_aug.csv,Xong
+cnn19k_sgd_b0,mammoth,CNN,19060,0,,"Không replay (sgd), Adam 1e-3",Forgetting 34.01; dòng final 64.82 là test,ẢNH,mammoth\log_cnn19k_sgd_seed0.txt,Xong
+cnn19k_er_b500,mammoth,CNN,19060,0,cnn19k_sgd_b0,ER buffer 500,TB 6 mốc 93.72; sau task 20 89.09; Forgetting 9.25,ẢNH,mammoth\log_cnn19k_er_seed0.txt,Xong
+cnn19k_derpp_b500,mammoth,CNN,19060,0,cnn19k_er_b500,"DER++ alpha 0.5, beta 0.5",TB 6 mốc 95.24; sau task 20 92.79,ẢNH,mammoth\log_cnn19k_derpp_seed0.txt,Xong
+cnn19k_er_b5120,mammoth,CNN,19060,0,cnn19k_er_b500,Buffer 5120,TB 6 mốc 95.67; sau task 20 95.43,ẢNH,mammoth\log_cnn19k_er_buf5120_seed0.txt,Xong
+mlp19k_er_b5120,mammoth,Đối chứng cổ điển,18858,0,cnn19k_er_b5120,"MLP cùng cỡ, đầu vào 16x16",TB 6 mốc 91.02; sau task 20 91.24,ẢNH,mammoth\log_mlp19k_er_buf5120_seed0.txt,Xong
+qcnnfusion_er_b500,mammoth,QCNN cây,19202,4824,fusion_cu,"Fusion cũ trong Mammoth: re-upload từ đầu, gradient checkpointing, không aug, 1 epoch mỗi task",TB 6 mốc 86.67; mốc 12 76.44,ẢNH,mammoth\log_qcnnfusion_er_seed0.txt,Dừng sau task 13
+qcnnfusionscan_er_b500,mammoth,QCNN cây,19202,4824,qcnnfusion_er_b500,"Quét theo góc 0, 60, 120 độ thay row, column, morton",TB 6 mốc 85.35,ẢNH,mammoth\log_qcnnfusionscan_er_seed0.txt,Dừng sau task 6
+qcnnfusion_derpp_b500,mammoth,QCNN cây,19202,4824,qcnnfusion_er_b500,"DER++ alpha 0.5, beta 0.5",TB 4 mốc 90.02; mốc 4 86.46,ẢNH,mammoth\log_qcnnfusion_derpp_seed0.txt,Dừng sau task 4
+qcnnfusion_er_b5120,mammoth,QCNN cây,19202,4824,qcnnfusion_er_b500,Buffer 5120,TB 6 mốc 90.70; mốc 12 88.48; TB 17 mốc 89.11,ẢNH,mammoth\log_qcnnfusion_er_buf5120_seed0.txt,Đang chạy
+qcnnfusionphase2_er_b5120,mammoth,QCNN cây,19202,4824,qcnnfusion_er_b5120,"Pha theo tọa độ trong mã hóa, 2 chu kỳ, hướng 0, 60, 120 độ",TB 6 mốc 89.66,ẢNH,mammoth\log_qcnnfusionphase2_er_buf5120_seed0.txt,Bỏ; đến task 9
+cnn19k_er_b500_angles,mammoth,CNN,19060,0,cnn19k_er_b500,"Chạy lại để in góc từng task, không đổi model",Sau task 20 89.09 (trùng),ẢNH,mammoth\log_cnn19k_er_seed0_angles.txt,Xong
+diag_A,offline_task12,Chẩn đoán,19202,4824,qcnnfusion_er_b500,"Mạch và head của checkpoint task 12, 12 góc mới",69.54,ẢNH,mammoth\log_diagnose_fusion_task12.txt,Xong
+diag_B,offline_task12,Chẩn đoán,19202,4824,diag_A,"Giữ mạch, train lại head hiện tại trên 24.000 ảnh",90.16,ẢNH,mammoth\log_diagnose_fusion_task12.txt,Xong
+diag_C,offline_task12,Chẩn đoán,19202,4824,diag_B,"Mạch mới khởi tạo, head train lại",56.98,ẢNH,mammoth\log_diagnose_fusion_task12.txt,Xong
+diag_D,offline_task12,Chẩn đoán,19202,4824,diag_B,"Head train lại chỉ bằng buffer 500, 200 epoch",61.16,ẢNH,mammoth\log_diagnose_buffer_task12.txt,Xong
+diag_E_moe,offline_task12,Chẩn đoán,13900,4824,diag_B,"Head MoE 4 chuyên gia, head 9.076",87.88,ẢNH,mammoth\log_diagnose_moe_task12.txt,Xong

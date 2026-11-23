@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+import math
+
+import torch
+from torch import nn
+
+
+class LearnedUnitary2Q(nn.Module):
+    """Two-qubit unitary exp(iH) with a non-redundant Hermitian parameterization.
+
+    Stores the 4 real diagonal entries and the real/imaginary parts of the 6 strict upper entries
+    (16 parameters). balanced=True starts near sqrt(iSWAP) instead of the identity, so a qubit kept
+    after a partial trace depends on both input qubits from the first step.
+    """
+
+    def __init__(self, init_scale: float = 1e-2, balanced: bool = False):
+        super().__init__()
+        upper = torch.triu_indices(4, 4, offset=1)
+        self.register_buffer("upper_i", upper[0], persistent=False)
+        self.register_buffer("upper_j", upper[1], persistent=False)
+
+        off_diagonal_scale = init_scale / math.sqrt(2.0)
+        self.diagonal = nn.Parameter(init_scale * torch.randn(4))
+        self.raw_real_upper = nn.Parameter(off_diagonal_scale * torch.randn(upper.shape[1]))
+        self.raw_imag_upper = nn.Parameter(off_diagonal_scale * torch.randn(upper.shape[1]))
+        if balanced:
+            # sqrt(iSWAP) = exp(i*pi/8*(XX+YY)), so H[1,2] = H[2,1] = pi/4.
+            # triu_indices order is (0,1),(0,2),(0,3),(1,2),(1,3),(2,3): entry (1,2) has index 3.
+            with torch.no_grad():
+                self.raw_real_upper[3] += math.pi / 4.0
+
+    def forward(self) -> torch.Tensor:
+        real = torch.diag(self.diagonal)
+        real = real.index_put((self.upper_i, self.upper_j), self.raw_real_upper)
+        real = real.index_put((self.upper_j, self.upper_i), self.raw_real_upper)
+        imag = torch.zeros_like(real)
+        imag = imag.index_put((self.upper_i, self.upper_j), self.raw_imag_upper)
+        imag = imag.index_put((self.upper_j, self.upper_i), -self.raw_imag_upper)
+        return torch.matrix_exp(1j * torch.complex(real, imag))

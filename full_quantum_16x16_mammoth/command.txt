@@ -1,0 +1,99 @@
+# Run on the training machine, in the Mammoth folder, inside the venv. Commit e75a491.
+
+# 0. Install. Replace <project> with the folder that holds full_quantum_16x16_mammoth.
+git clone https://github.com/aimagelab/mammoth
+cd mammoth
+git checkout e75a491
+pip install -r requirements.txt
+Copy-Item -Recurse -Force <project>\full_quantum_16x16_mammoth\backbone\* .\backbone\
+Copy-Item -Force <project>\full_quantum_16x16_mammoth\test_quantum_backbones.py .
+
+# 1. Check: no MNIST needed. Send me the whole output.
+python test_quantum_backbones.py --device cuda:0
+
+# 2. Very short run of each path, a few steps only. Each must end without an error.
+python main.py --dataset rot-mnist --model sgd --backbone c4-local-mlp --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --debug_mode 1
+python main.py --dataset rot-mnist --model er --backbone c4-local-mlp --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32 --debug_mode 1
+python main.py --dataset rot-mnist --model er --backbone qcnn-s9 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32 --debug_mode 1
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32 --debug_mode 1
+
+# 3. Classical runs, fast: the small CNNs are the main comparison, then the MLPs. Send me the final accuracy and forgetting lines.
+python main.py --dataset rot-mnist --model sgd --backbone mnistmlp --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0
+python main.py --dataset rot-mnist --model er --backbone mnistmlp --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32
+python main.py --dataset rot-mnist --model sgd --backbone c4-local-mlp --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0
+python main.py --dataset rot-mnist --model er --backbone c4-local-mlp --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32
+python main.py --dataset rot-mnist --model sgd --backbone mlp-19k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0
+python main.py --dataset rot-mnist --model er --backbone mlp-19k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32
+python main.py --dataset rot-mnist --model sgd --backbone cnn-3k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0
+python main.py --dataset rot-mnist --model er --backbone cnn-3k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32
+python main.py --dataset rot-mnist --model sgd --backbone cnn-5k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0
+python main.py --dataset rot-mnist --model er --backbone cnn-5k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32
+python main.py --dataset rot-mnist --model sgd --backbone cnn-19k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0
+python main.py --dataset rot-mnist --model er --backbone cnn-19k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32
+
+# 4. s9, about 4 GB per 64 images.
+python main.py --dataset rot-mnist --model sgd --backbone qcnn-s9 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --savecheck task
+python main.py --dataset rot-mnist --model er --backbone qcnn-s9 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32 --savecheck task
+
+# 5. The old fusion model: the slowest. Check the GPU memory reported in step 1 first.
+python main.py --dataset rot-mnist --model sgd --backbone qcnn-fusion --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --savecheck task
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32 --savecheck task
+
+# 5b. Scan angles 0, 60, 120 degrees, same images. Stop by hand after task 6, then compare with qcnn-fusion at the same tasks.
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion-scan --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 500 --minibatch_size 32 --savecheck task
+
+# 5c. Is the forgetting in the circuit or the head? Copy diagnose_fusion_head.py next to main.py. Check the file name in .\checkpoints: _11 is task 12.
+python diagnose_fusion_head.py --checkpoint .\checkpoints\<er_rot-mnist_..._11.pt> --backbone qcnn-fusion --device cuda:0 --angles 12 --angle-seed 0 --split-seed 0 --train-per-angle 2000 --val-per-angle 1000 --batch-size 64 --epochs 30 --head-batch-size 256 --lr 1e-3 --head-seeds 3
+
+# 5d. Retrain only the head on the buffer stored in the checkpoint. Put diagnose_buffer_head.py next to main.py.
+python diagnose_buffer_head.py --checkpoint .\checkpoints\er_rot-mnist_None_500_1_20261105-024150_b2cd2658_11.pt --backbone qcnn-fusion --device cuda:0 --angles 12 --angle-seed 0 --split-seed 0 --train-per-angle 2000 --val-per-angle 1000 --batch-size 64 --epochs 25 100 200 --head-batch-size 32 --lr 1e-3 --head-seeds 3
+
+# 5e. Expert head, offline first: same circuit features as 5c. Put diagnose_moe_head.py next to diagnose_fusion_head.py.
+python diagnose_moe_head.py --checkpoint .\checkpoints\er_rot-mnist_None_500_1_20261105-024150_b2cd2658_11.pt --device cuda:0 --angles 12 --angle-seed 0 --split-seed 0 --train-per-angle 2000 --val-per-angle 1000 --batch-size 64 --epochs 30 --head-batch-size 256 --lr 1e-3 --head-seeds 3 --experts 4
+# 5f. In Mammoth, only if 5e reaches 89.16 or more. Stop by hand after task 6.
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion-moe --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32 --savecheck task
+
+# 5g. Position phase in the encoding. Run phase2 first, stop by hand after task 6, compare with qcnn-fusion er buffer 5120.
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion-phase2 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32 --savecheck task
+
+# 5h. Smaller readouts on the same circuit features, offline. Put diagnose_readout_sweep.py next to diagnose_fusion_head.py.
+python diagnose_readout_sweep.py --checkpoint .\checkpoints\er_rot-mnist_None_500_1_20261105-024150_b2cd2658_11.pt --device cuda:0 --angles 12 --angle-seed 0 --split-seed 0 --train-per-angle 2000 --val-per-angle 1000 --batch-size 64 --epochs 30 --head-batch-size 256 --lr 1e-3 --head-seeds 3 --readouts current linear typed1 typed2 typed4
+
+# 5i. Smaller typed readout, run as an exception: offline 89.01 was below 89.16. Stop by hand after task 6; kept if the 6-task mean reaches 89.70.
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion-typed4 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32 --savecheck task
+
+# 5j. Classical controls sized like qcnn-fusion-typed4 (12.010): mlp-12k 11.970, cnn-12k 12.070. Run all 20 tasks.
+python main.py --dataset rot-mnist --model er --backbone mlp-12k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+python main.py --dataset rot-mnist --model er --backbone cnn-12k --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 5k. Which measurements of the circuit hold the information? Offline, same checkpoint and angles as 5c. Put diagnose_multilevel.py next to diagnose_fusion_head.py.
+python diagnose_multilevel.py --checkpoint .\checkpoints\er_rot-mnist_None_5120_1_20261105-153615_d9a9337f_19.pt --device cuda:0 --angles 12 --angle-seed 0 --split-seed 0 --train-per-angle 2000 --val-per-angle 1000 --batch-size 64 --epochs 30 --head-batch-size 256 --lr 1e-3 --head-seeds 3 --readouts pre24 final276 pre24+level16 final276+level16 final276+level16+level32
+
+# 5l. Level-32 readout, run as an exception: offline 91.06 was below 91.26. Put run_mammoth.py next to main.py.
+# It writes logs/log_<name>.txt and stops after --end_at (no final test).
+# Kept if the 6-task mean is above 90.70 (qcnn-fusion). Result: 91.86, kept.
+python run_mammoth.py --name qcnnfusionlevel32_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 5m. Resume does not work for rot-mnist (old tasks get new angles, and the saved stop_after is reused), so run level32 again from the start, all 20 tasks.
+python run_mammoth.py --name qcnnfusionlevel32_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone qcnn-fusion-level32 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 5n. Improvements of level32 (2026-11-08). Copy the whole backbone folder and test_quantum_backbones.py first, then
+# run step 1 again (python test_quantum_backbones.py --device cuda:0) and send the whole output.
+# Each run stops after task 6, without the final test. Same seed and buffer as level32, so the same task angles.
+# Decided before the runs, against level32 after task 6 (6-task mean 91.86, learned-just-now mean of tasks 1-6 94.27):
+#   keep  if the 6-task mean >= 92.16 and the learned-just-now mean of tasks 1-6 >= 94.57
+#   tie   if the 6-task mean is 91.56 to 92.16
+#   drop  if below 91.56
+# a) Quantum parameters learn 4 times faster under Adam (same parameters, same start as level32).
+python run_mammoth.py --name qcnnfusionlevel32lr4_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32-lr4 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+# b) A fourth tree, Morton order shifted by 4 pixels; 19.162 parameters, quantum 33.6%. About a third slower.
+python run_mammoth.py --name qcnnfusionlevel32_4tree_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32-4tree --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+# c) 8-neighbour quantum graph layer before each tree (30 parameters, starts as level32).
+python run_mammoth.py --name qcnnfusionlevel32graph_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32-graph --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+# d) level32 itself with seed 1, all 20 tasks: how much one seed moves the numbers. Other angles than seed 0.
+python run_mammoth.py --name qcnnfusionlevel32_er_buf5120_seed1_full --dataset rot-mnist --model er --backbone qcnn-fusion-level32 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 1 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+# To run a), b) or c) for all 20 tasks, drop --end_at 6 and add _full to --name.
+
+# Any run that reaches the end with --validation also evaluates once on the real test set: the "final" line. Do not use that line to choose.
+
+# 6. Only after one configuration is chosen, once: remove --validation 10 --validation_mode complete to report on the MNIST test set.

@@ -1,0 +1,42 @@
+# ==============================================================================
+# LEVEL32 ĐO THÊM TẦNG CỦA CÂY, MNIST TĨNH (full_quantum_16x16_multilevel, 2026-11-14)
+# Chạy từ trong folder full_quantum_16x16_multilevel trên máy train (venv có CUDA).
+# Folder chép từ full_quantum_16x16_level32_aug (folder đó không bị sửa). Không có encoder trước mạch.
+# Cùng điều kiện với run level32_aug: dropout 0,2; aug 5 độ / 0,05; batch 64; 50 epoch; lr 1e-3; patience 10;
+# seed 0; split-seed 20260911; 50.000 train / 10.000 val.
+# --side-level nhận nhiều tầng (16, 32, 64, 128): mỗi cây đọc thêm X, Y, Z của mọi qubit ở các tầng đó.
+# Trong cây các qubit độc lập, nên X, Y, Z là toàn bộ thông tin của tầng (tính chính xác).
+# Mỗi tầng N qubit thêm 3N đặc trưng mỗi cây; projection giữ 12, nên head lớn lên (người dùng chấp nhận).
+# ==============================================================================
+$env:PYTHONIOENCODING = "utf-8"
+
+# 0. Kiểm tra (chạy 1 lần, gửi toàn bộ output). Phải có "ALL TESTS PASSED SUCCESSFULLY!";
+#    cuối là thời gian mỗi batch 64 của level32, 32+64, 16+32+64.
+python .\test_model.py
+
+# 1a. (Chạy trước) Đo tầng 32 + 64. 26.030 tham số (quantum 4.824 = 18,5%; head 21.206).
+python .\run_level32_aug.py --side-level 32 64 --projection 12 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\levels_32_64 | Tee-Object -FilePath .\log_levels_32_64.txt
+
+# 1b. Đo tầng 16 + 32 + 64. 27.758 tham số (quantum 17,4%; head 22.934).
+python .\run_level32_aug.py --side-level 16 32 64 --projection 12 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\levels_16_32_64 | Tee-Object -FilePath .\log_levels_16_32_64.txt
+
+# 1c. (Tùy chọn) Đo tầng 16 + 32. 20.846 tham số (quantum 23,1%; head 16.022).
+python .\run_level32_aug.py --side-level 16 32 --projection 12 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\levels_16_32 | Tee-Object -FilePath .\log_levels_16_32.txt
+
+# 2. ĐỐI CHỨNG CỠ HEAD (chỉ cần nếu 1a "hơn"): chỉ tầng 32 như cũ, nhưng projection 18 để head to bằng 1a.
+#    26.156 tham số (head 21.332). Cho biết phần tăng của 1a do đặc trưng tầng 64 hay chỉ do head lớn hơn.
+python .\run_level32_aug.py --side-level 32 --projection 18 --hidden 16 --dropout 0.2 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\levels_32_proj18 | Tee-Object -FilePath .\log_levels_32_proj18.txt
+
+# Gửi: history.csv (hoặc ảnh dòng cuối log có Best Val Acc / Best Val Loss) của mỗi run.
+
+# ------------------------------------------------------------------------------
+# NGƯỠNG CHỐT TRƯỚC (Claude đề xuất 2026-11-14), validation 10.000 ảnh, seed 0. Quyết định theo MAX val; ghi cả CK
+# (val acc ở checkpoint val loss thấp nhất). Mốc: level32 không encoder MAX 98,84 [NGƯỜI DÙNG BÁO 2026-11-14,
+# cần xác nhận bằng history.csv; trước đó báo khoảng 98,5]. Mốc khác: deep12p proj10 99,14; cnn5k cổ điển 99,11.
+#   1a, 1b, 1c so level32: hơn nếu MAX >= 99,14; ngang nếu trong ±0,30; kém nếu <= 98,54. Ghi riêng có đạt 99,00 không.
+#   1b so 1a: tầng 16 có thêm gì nếu 1b >= 1a + 0,30.
+#   Đối chứng 2: đặc trưng tầng 64 có ích (không chỉ do head lớn) nếu 1a >= 2 + 0,30.
+# Dự đoán của Claude (ghi để kiểm): 1a khoảng 98,8-99,1, nhiều khả năng ngang level32. Lý do: offline trên Mammoth,
+# cùng cỡ head thì đo thêm tầng không tăng; head lớn hơn thì tăng. Một seed: chênh dưới 0,30 chưa đủ kết luận.
+# Official test: chỉ 1 lần cho bản chốt cuối, không dùng để chọn.
+# python .\evaluate_test.py --checkpoint .\runs\<run đã chọn>\model_best_val_acc.pt --data-root .\mnist_data --device cuda

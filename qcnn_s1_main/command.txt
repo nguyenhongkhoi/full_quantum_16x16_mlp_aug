@@ -1,0 +1,111 @@
+LỆNH CHẠY - QCNN S1 (bản chốt) + CNN cổ điển cùng cỡ, MNIST / Fashion-MNIST 16x16
+=================================================================================
+Tất cả lệnh chạy bằng PowerShell, đứng ở thư mục gốc repo (branch main). Số tham số báo theo FREE
+(unitary 2 qubit 16, 1 qubit 4; xem CACH_DEM_THAM_SO.txt). Mọi run: seed 0, split 50.000 train / 10.000
+validation (split-seed 20260911), aug xoay +-5 độ, dịch +-0,05, dropout 0, Adam lr 1e-3, ReduceLROnPlateau
+x0,5 patience 3, dừng sớm patience 10 theo val loss, tối đa 50 epoch. Chọn model theo validation;
+test chính thức chỉ chạy MỘT lần cho bản chốt (bước 5).
+
+Dữ liệu: --dataset mnist (mặc định) hoặc --dataset fashion. Tự tải vào --data-root (.\mnist_data dùng chung
+cho cả hai: MNIST nằm ở .\mnist_data\MNIST, Fashion-MNIST ở .\mnist_data\FashionMNIST).
+
+
+0. CÀI ĐẶT (một lần trên máy train)
+-----------------------------------
+git clone -b main https://github.com/nguyenhongkhoi/full_quantum_16x16_mlp_aug.git qcnn_s1
+cd qcnn_s1
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+# (Activate.ps1 bị chặn thì chạy trước: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned)
+
+# Mỗi lần mở PowerShell mới:
+cd <đường dẫn>\qcnn_s1
+.\.venv\Scripts\Activate.ps1
+$env:PYTHONIOENCODING = "utf-8"
+New-Item -ItemType Directory -Force -Path .\logs | Out-Null
+# Cập nhật code mới nhất:  git pull
+
+# Kiểm tra model (đếm tham số, so mạch với ma trận đầy đủ; vài phút, CPU):
+python .\test_model.py
+
+
+1. QCNN S1 - BẢN CHÍNH (FREE 9.389, bỏ pha 9.135; MNIST MAX val 99,10)
+-----------------------------------------------------------------------
+Encoder quanvolution qconv4x3 -> 3 cây level32 (row / column / morton) -> head samebasis Linear(204,10)
+mỗi cây -> router lượng tử 8 qubit trộn logit. Log phải in dòng FREE parameters ... Total=9389.
+
+# MNIST
+python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\mnist_S1_samebasis | Tee-Object -FilePath .\logs\mnist_S1_samebasis.txt
+
+# Fashion-MNIST
+python .\train.py --dataset fashion --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\fashion_S1_samebasis | Tee-Object -FilePath .\logs\fashion_S1_samebasis.txt
+
+
+2. BIẾN THỂ ÍT THAM SỐ HƠN (cùng lệnh S1, thêm cờ; đổi --dataset tùy bộ dữ liệu)
+-------------------------------------------------------------------------------
+# G1 = S1 + --share-gates (khối 8 qubit cuối mỗi lớp dùng chung 1 U1 + 1 U2): FREE 7.709; MNIST MAX val 98,88
+python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --share-gates --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\mnist_G1_sharegates | Tee-Object -FilePath .\logs\mnist_G1_sharegates.txt
+
+# G2 = G1 + --share-final (3 cây dùng chung khối 8 qubit cuối): FREE 7.549; chưa chạy
+python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --share-gates --share-final --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\mnist_G2_sharegates_sharefinal | Tee-Object -FilePath .\logs\mnist_G2_sharegates_sharefinal.txt
+
+# Các tùy chọn khác của train.py (xem python .\train.py --help):
+#   --expert-head samebasis | linear (M1, 14.429) | nocorr (N1, 6.869) | zz | shared | mlp | bloch8 | obs10 | fusion
+#   --router quantum | none | linear | mlp ; --router-source encoder | pixels ; --router-detach
+#   --orders row column morton (đổi thứ tự / số cây) ; --share-gates ; --share-final ; --front-readout linear | direct
+#   --mix logits | probs ; --entropy-weight ; --router-lr ; --seed (3 seed: 0 1 2)
+
+
+3. CNN CỔ ĐIỂN CÙNG CỠ (so sánh; cùng split / aug / optimizer / dừng sớm)
+-------------------------------------------------------------------------
+SmallCNN: Conv(1->a) BN ReLU Pool, Conv(a->b) BN ReLU Pool, Linear(16b,b) ReLU, Linear(b,10);
+tham số = 12a + 9ab + 16b^2 + 14b + 10. Chạy từ thư mục classical_cnn. Mỗi cỡ nên quét 3 lr (3e-3, 1e-3,
+3e-4), lấy lr có MAX val cao nhất.
+
+| QCNN              | FREE   | CNN --widths | CNN tham số |
+|-------------------|-------:|-------------:|------------:|
+| S1                |  9.389 | 14 20        |  9.378      |
+| S1 (dạng khác)    |  9.389 | 10 21        |  9.370      |
+| G1                |  7.709 | 13 18        |  7.708      |
+| G2                |  7.549 | 12 18        |  7.534      |
+| M1                | 14.429 | 17 25        | 14.389      |
+Preset có sẵn (--preset): cnn1k 934, cnn2k 1.990, cnn3k 2.988, cnn5k 5.578, cnn12k 12.070, cnn17k 17.170,
+cnn19k 19.060, cnn30k 30.726, cnn50k 49.984, cnn85k 85.258.
+
+cd .\classical_cnn
+New-Item -ItemType Directory -Force -Path .\logs | Out-Null
+
+# Một run lẻ (CNN cùng cỡ S1, MNIST, lr 1e-3):
+python .\run_cnn.py --dataset mnist --widths 14 20 --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root ..\mnist_data --out-dir .\runs\mnist_w14_20_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_mnist_w14_20_lr1e-3_seed0.txt
+
+# Cùng run trên Fashion-MNIST:
+python .\run_cnn.py --dataset fashion --widths 14 20 --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root ..\mnist_data --out-dir .\runs\fashion_w14_20_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_fashion_w14_20_lr1e-3_seed0.txt
+
+# Quét tự động 5 cỡ trong bảng x 3 lr (15 run, bỏ qua run đã xong, cuối cùng in bảng tong_hop.py):
+powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset mnist
+powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset fashion
+# Chỉ vài cỡ / một lr:
+powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset mnist -Widths "14 20","13 18" -Lrs "1e-3"
+
+# Bảng kết quả (MAX val từng run + lr tốt nhất mỗi cỡ) -> ket_qua_cnn.csv:
+python .\tong_hop.py
+cd ..
+
+
+4. PHÂN TÍCH ROUTER (validation, không dùng test)
+-------------------------------------------------
+python .\analyze_routing.py --checkpoint .\runs\mnist_S1_samebasis\model_best_val_acc.pt --data-root .\mnist_data
+
+
+5. TEST CHÍNH THỨC - CHỈ MỘT LẦN, cho bản chốt (dataset tự đọc từ checkpoint)
+-----------------------------------------------------------------------------
+python .\evaluate_test.py --checkpoint .\runs\mnist_S1_samebasis\model_best_val_acc.pt --mode soft --data-root .\mnist_data
+python .\evaluate_test.py --checkpoint .\runs\fashion_S1_samebasis\model_best_val_acc.pt --mode soft --data-root .\mnist_data
+python .\classical_cnn\evaluate_test.py --checkpoint .\classical_cnn\runs\mnist_w14_20_lr1e-3_seed0\model_best_val_acc.pt --data-root .\mnist_data
+
+
+Đầu ra mỗi run (trong --out-dir): history.csv, config.json, summary.json, convergence.png, train_log.txt,
+model_best_val_acc.pt, model_best_val_loss.pt, model_last.pt. runs\ và logs\ không đưa lên git.

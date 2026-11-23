@@ -1,0 +1,70 @@
+# ==============================================================================
+# MAMMOTH rot-mnist: mạch quantum nhỏ làm encoder (mammoth_qconv_front, 2026-11-13)
+# Chạy trên máy train, trong folder Mammoth (commit e75a491), trong venv có CUDA:
+#   C:\Users\Public\full_quantum_16x16_mlp_aug_5deg\full_quantum_16x16_mlp_aug\mammoth
+# Cấu hình giống mọi run er buffer 5120 trước: Adam lr 1e-3, batch 32, replay 32, 1 epoch mỗi task, seed 0,
+# validation 10 complete, KHÔNG augmentation. Cùng seed và buffer nên cùng dãy góc với level32 và deep12p.
+# ==============================================================================
+$env:PYTHONIOENCODING = "utf-8"
+
+# 0. Chép code vào Mammoth. <project> = folder chứa mammoth_qconv_front (giải nén mammoth_qconv_front.zip).
+#    backbone ở đây là bản mở rộng của mammoth_level32_front: mọi backbone cũ giữ nguyên.
+#    Chép VÀO folder mammoth (không phải folder cha). Không xóa checkpoints, logs.
+Copy-Item -Recurse -Force <project>\mammoth_qconv_front\backbone\* .\backbone\
+Copy-Item -Force <project>\mammoth_qconv_front\test_quantum_backbones.py .
+
+# 1. Kiểm tra (không cần MNIST, khoảng 1-2 phút vì so với ma trận 512x512). Gửi toàn bộ output.
+#    Phải có "OK  quantum encoder" và "All checks passed."; cuối là thời gian/bộ nhớ mỗi batch của các backbone mới.
+python test_quantum_backbones.py --device cuda:0
+
+# 2. Chạy thử vài bước, phải kết thúc không lỗi.
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion-level32-qconv2x2 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32 --debug_mode 1
+
+# ------------------------------------------------------------------------------
+# THÍ NGHIỆM 1: khả năng encode. Encoder + cùng readout AvgPool 4x4 -> Linear(32,10). Không có mạch cây nên nhanh;
+# chạy đủ 20 task. Chạy theo thứ tự 1a, 1b trước (so chính), rồi 1c, 1d, 1e.
+# ------------------------------------------------------------------------------
+# 1a. quantum + linear (550 tham số)
+python run_mammoth.py --name enclinearqconv2x2_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone enc-linear-qconv2x2 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 1b. CNN nhỏ 1k9 + linear (1.976 tham số; encoder deep12p)
+python run_mammoth.py --name enclineardeep12p_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone enc-linear-deep12p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 1c. CNN cùng cỡ với qconv2x2 + linear (556 tham số; encoder cnn8p)
+python run_mammoth.py --name enclinearcnn8p_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone enc-linear-cnn8p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 1d. mạch đóng băng + linear (442 tham số học được)
+python run_mammoth.py --name enclinearqconv2x2f_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone enc-linear-qconv2x2f --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 1e. (Tùy chọn) quantum lớn hơn, cửa sổ 7x7 như deep12p (822 tham số)
+python run_mammoth.py --name enclinearqconv4x3_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone enc-linear-qconv4x3 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# ------------------------------------------------------------------------------
+# THÍ NGHIỆM 2: bản đầy đủ, encoder quantum trước mạch level32 (giữ nguyên). Sàng lọc 6 task (khoảng 4 giờ mỗi run).
+# ------------------------------------------------------------------------------
+# 2a. qconv2x2 + level32 (16.992)
+python run_mammoth.py --name qcnnfusionlevel32qconv2x2_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32-qconv2x2 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 2b. Đối chứng: cnn8p + level32 (16.998), cùng mạch và head, encoder CNN cùng cỡ
+python run_mammoth.py --name qcnnfusionlevel32cnn8p_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32-cnn8p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 2c. (Tùy chọn, nếu 1e tốt hơn 1a) qconv4x3 + level32 (17.264)
+python run_mammoth.py --name qcnnfusionlevel32qconv4x3_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32-qconv4x3 --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 3. Xuất CSV sau mỗi run, gửi mammoth_mean.csv và mammoth_tasks.csv (hoặc ảnh các dòng "Accuracy for N task(s)",
+#    Backward Transfer, Forgetting). Run --end_at 6: gửi cả 6 dòng "Accuracy for N task(s)".
+python export_mammoth_logs.py
+
+# ------------------------------------------------------------------------------
+# NGƯỠNG CHỐT TRƯỚC (Claude đề xuất 2026-11-13), validation, er buffer 5120, seed 0. Luôn so CÙNG đại lượng.
+# Thí nghiệm 1 (20 task), đại lượng chính: accuracy sau task 20; phụ: trung bình 20 mốc.
+#   qconv2x2 (1a) so CNN 1k9 (1b):  "ngang CNN 1k9" nếu trong ±0,30; hơn nếu >= +0,30; kém nếu <= -0,30.
+#   qconv2x2 (1a) so CNN cùng cỡ (1c): quantum encode tốt hơn CNN cùng cỡ nếu >= +0,30.
+#   Mạch có học (1a so 1d): train mạch có ích nếu 1a >= 1d + 0,30; nếu trong ±0,30 thì phần lớn là do readout.
+# Thí nghiệm 2 (6 task), đại lượng chính: TRUNG BÌNH 6 MỐC (mốc cũ: level32 91,86; deep12p 94,28;
+#   cnn-12k 94,65; cnn-19k 95,67). Phụ: sau task 6 (level32 89,85; deep12p 93,25; cnn-19k 94,64).
+#   giữ nếu >= 92,16 (level32 + 0,30); "ngang deep12p" nếu >= 93,98; bỏ nếu < 91,56.
+#   Encoder quantum có ích trong bản đầy đủ nếu 2a >= 2b + 0,30; ngang trong ±0,30.
+# Dự đoán của Claude (ghi để kiểm): 1a kém 1b (encoder 220 so 1.646 tham số), khoảng ngang 1c; 1d kém 1a;
+#   2a khoảng 92,5-93,5 TB 6 mốc (giữa level32 và deep12p); 2a ngang 2b.
+# Một seed: chênh dưới 0,3 chưa đủ kết luận.

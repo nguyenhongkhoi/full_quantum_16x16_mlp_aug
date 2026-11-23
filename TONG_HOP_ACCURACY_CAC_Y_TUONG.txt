@@ -1,0 +1,159 @@
+﻿TỔNG HỢP ACCURACY CÁC Ý TƯỞNG FULLQUANTUM MNIST
+Cập nhật: 06/11/2026
+Phạm vi: các ý tưởng/thí nghiệm đã được nhắc đến và các log, báo cáo hiện có trong workspace.
+
+QUY ƯỚC ĐỌC SỐ LIỆU
+-------------------
+[LOG]            Có summary/CSV trong workspace, đối chiếu trực tiếp được.
+[BÁO CÁO]        Có số trong báo cáo cũ, nhưng hiện không có raw log để kiểm tra lại.
+[NGƯỜI DÙNG BÁO] Số hoặc nhận xét do người dùng cung cấp trong hội thoại/ảnh terminal.
+[ƯỚC TÍNH]       Số làm tròn hoặc suy ra từ tài liệu, không phải raw result.
+[CHƯA ĐO]        Chưa có accuracy thực nghiệm trong workspace.
+
+Validation và official test là hai bộ khác nhau. Không so sánh trực tiếp accuracy test với validation. Max validation qua các epoch cũng khác accuracy của checkpoint được chọn theo validation loss.
+
+1. BẢNG TỔNG HỢP CÁC Ý TƯỞNG
+----------------------------
+
+Ý TƯỞNG / MÔ HÌNH                          ACCURACY                         TRẠNG THÁI / GHI CHÚ
+---------------------------------------------------------------------------------------------------------------
+Mốc FullQuantum 16×16 trong summary        Val 97,71% [LOG]                 Mức baseline được ghi trong summary của run MLP-256. Đây là mốc tham chiếu; cần xem config gốc để gắn chắc chắn với một cấu hình kiến trúc cụ thể.
+
+3 nhánh + MLP-256 + augmentation           Val tại checkpoint: 98,80%       [LOG]
+                                           Max val: 98,84% (epoch 53)       [LOG]
+                                           62 epoch; khoảng 17,3 giờ        [LOG]
+                                           Khoảng 226.806 tham số           [BÁO CÁO]
+                                           Đây là run có raw history/summary đầy đủ nhất trong workspace. Checkpoint được chọn theo val loss ở epoch 52, đạt 98,80%; max val accuracy 98,84% ở epoch khác. Không thấy official-test result của run này trong artifacts hiện tại.
+
+3 nhánh + MLP-16, dropout p=0,1            Val khoảng 98,52% (epoch 39)    [BÁO CÁO]
+                                           Val loss khoảng 0,0491           [BÁO CÁO]
+                                           Khoảng 18.726 tham số            [BÁO CÁO]
+                                           Số liệu được ghi trong báo cáo cũ từ CSV MLP-16 đến khoảng epoch 41; không có raw CSV/checkpoint tương ứng trong workspace hiện tại để đối chiếu lại.
+
+MLP-16 bỏ dropout                         Val khoảng 98,63% giữa phase 3  [NGƯỜI DÙNG BÁO]
+                                           Kết quả cuối chưa rõ             [NGƯỜI DÙNG BÁO]
+                                           Đây là số đọc từ ảnh terminal khi run đang chạy, không phải kết quả cuối. Chưa đủ để kết luận bỏ dropout cải thiện so với p=0,1.
+
+Input 32×32 padded + 3 nhánh + MLP         Val khoảng 98,6%                 [NGƯỜI DÙNG BÁO]
+                                           Exact score/checkpoint:          [CHƯA XÁC MINH]
+                                           Chưa có CSV/summary 32×32 trong workspace hiện tại. Khác input size và số pooling, nên không phải so sánh controlled với bản 16×16.
+
+5-view TTA trên checkpoint MLP-256         Test single-view 98,75%         [BÁO CÁO]
+                                           Test TTA 5 view 98,91%            [BÁO CÁO]
+                                           Tăng +0,16 điểm phần trăm        [BÁO CÁO]
+                                           Đây là augmentation lúc suy luận, không phải kiến trúc train mới và không tăng parameter. Raw JSON kết quả TTA không có trong workspace hiện tại; không dùng test này để tiếp tục chọn policy.
+
+3 scan order row/column/Morton, MLP-16     Chưa có con số final xác thực     [CHƯA CÓ LOG]
+                                           Người dùng từng ghi nhận đổi scan/3 nhánh không tạo đột phá lên 99%. README của ablation yêu cầu so với baseline cùng split; workspace không có history cho run đó.
+
+3 nhánh feature-fusion + fusion MLP-16     Val tại checkpoint: 98,70% (ep 55, val loss 0,043938) [NGƯỜI DÙNG GỬI CSV]
+                                           Max val: 98,72% (ep 54)           [NGƯỜI DÙNG GỬI CSV]
+                                           19.202 tham số theo phép đếm code của Codex (16.802 nếu bỏ 2.400 tham số dư). CSV đến ep 64, val loss không cải thiện 9 epoch nên gần như là số cuối; CSV không nằm trong workspace và không ghi config, protocol theo command.txt do Codex báo.
+
+Distillation (KD), MLP-16                 Khoảng 98,21% val (epoch 31)     [BÁO CÁO CŨ]
+                                           Raw history không có ở đây        [CHƯA XÁC MINH]
+                                           Báo cáo MLP-16 cũ ghi kết quả phase 3 này; chưa xem đây là cải tiến đã xác nhận nếu chưa có CSV/checkpoint gốc.
+
+1 nhánh + MLP-32                           Không có số cụ thể               [NGƯỜI DÙNG BÁO]
+                                           Được mô tả là kết quả không tốt   [NGƯỜI DÙNG BÁO]
+                                           Chưa có log trong workspace; không gán một phần trăm cụ thể.
+
+2 nhánh row/Morton + multiscale side tap   Val tại checkpoint: 98,32% (ep 52, val loss 0,052194) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Max val: 98,34% (ep 57)           [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Khoảng 12.420 tham số phase 3     [ƯỚC TÍNH]
+                                           Run hoàn tất do early stop ở ep 62, 1 seed, aug 5 độ; log nằm trên máy train. Theo đánh giá kiến trúc mới nhất, mức giảm là khoảng 23,9% so với 16.326 tham số hữu hiệu của baseline sau khi loại 2.400 chiều tham số dư; so với số raw 18.726 thì giảm danh nghĩa 33,7%. Không suy diễn accuracy từ số tham số.
+
+Morton bond-2, 1 nhánh, b2 (3.066 tham số) Val tại checkpoint: 97,10% (ep 54)  [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Max val: 97,15% (ep 64)          [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất, 1 seed, aug 5 độ. Hiện không còn ưu tiên hướng này.
+Cây 1 qubit, 2 nhánh, tree1q (3.060 tham số) Val tại checkpoint: 96,85% (ep 70) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Max val: 96,91% (ep 54)          [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất, 1 seed, aug 5 độ. Không có stage 8 qubit, không có re-upload.
+CNN cổ điển cnn3k (2.988 tham số)          Val tại checkpoint: 98,64% (ep 33)  [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Max val: 98,64% (ep 33)          [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất, 1 seed, aug 5 độ. Số tham số theo thiết kế.
+CNN cổ điển cnn2k (1.990 tham số)          Đến ep 52: val 98,09% tại val loss thấp nhất (ep 48) [NGƯỜI DÙNG GỬI CSV]
+                                           Max val đến ep 52: 98,12% (ep 46)  [NGƯỜI DÙNG GỬI CSV]
+                                           CSV chưa cho thấy run đã kết thúc, nên chưa phải số cuối chắc chắn. 1 seed, aug 5 độ.
+CNN cổ điển cnn5k (5.578 tham số)          Val tại checkpoint: 99,04% (ep 46)  [NGƯỜI DÙNG GỬI CSV]
+                                           Max val: 99,11% (ep 49)          [NGƯỜI DÙNG GỬI CSV]
+                                           Run hoàn tất do early stop, 1 seed, 16×16, aug 5 độ. Chưa có official test.
+b2 + 2 lượt dịch ảnh, b2_shift02 (3.066)   Val CK 97,47% (ep 70), max 97,54% (ep 64) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất, 1 seed, aug 5 độ.
+Ô 12 qubit, s2_p12 (2.538 tham số)         Max val 96,78% (ep 28)            [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Người dùng dừng ở khoảng ep 30.
+Ô 8 qubit, s1_p8 (2.522 tham số)           Val 96,47% (ep 44), max 96,49% (ep 45) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Người dùng dừng ở khoảng ep 46.
+s9_meas_frozen, gate ngẫu nhiên đóng băng (2.546, học được 2.482)  Val CK 95,77% (ep 44, val loss 0,141509), max 95,77% (ep 44) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất do early stop ở ep 54, 1 seed, aug 5 độ. Đối chứng cho s9_meas.
+CNN cổ điển cnn1k (934 tham số)            Val tại checkpoint: 96,53% (ep 44, val loss 0,110092) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Max val: 96,55% (ep 51)          [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất do early stop ở ep 54, 1 seed, aug 5 độ. Số tham số theo thiết kế.
+s9_meas, đo 53 Pauli mỗi ô (2.546 tham số)  Val tại checkpoint: 98,09% (ep 53, val loss 0,062207) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Max val: 98,10% (ep 50)          [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất do early stop ở ep 63, 1 seed, aug 5 độ. Quanvolution + MLP, không phải tensor network.
+c4_local_mlp, đối chứng cổ điển của s9_meas (2.542 tham số)  Val tại checkpoint: 98,19% (ep 50, val loss 0,059305) [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Max val: 98,22% (ep 49)          [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Run hoàn tất do early stop ở ep 60, seed 0, aug 5 độ. Cùng ô và cùng head với s9_meas, không có mạch quantum.
+fusion3 (18.194)                    CK 98,33% (ep 45), MAX 98,43%, đến ep 55, val [CSV]
+level32_front cnn4 (19.195; encoder cổ điển 77)  Max val 98,82% (ep 49); val loss thấp nhất ep 46, CK chưa có số [NGƯỜI DÙNG BÁO, ẢNH]
+                                           Ep 50: val 98,78%. Run 50 epoch, seed 0, aug 5 độ.
+level32_front deep12p + projection 10 (18.418; encoder cổ điển 1.646)  Val tại checkpoint 99,09% (ep 41, val loss 0,030913); max val 99,14% (ep 37) [ẢNH, CSV]
+                                           Ep 50: val 99,10%. Run 50 epoch, seed 0, aug 5 độ. Tên run suy ra, chưa xác nhận. Ngang cnn5k cổ điển (99,11, 5.578); cần đối chứng bỏ mạch.
+MoE qconv4x3 + router quantum + 3 x Linear(372,10) (M1, folder fullquantum_16x16_frontQuan4x3_Moe; 17.149; quantum 33,75%; dropout 0)  Val tại checkpoint 99,03% (ep 38, val loss 0,031740) = max val; uniform 98,66%, top1 83,02% cùng ep; CSV đến ep 41 (người dùng dừng) [CSV ket_qua/history_M1_router_quantum_ep41.csv]
+                                           2c qconv4x3 head MLP 99,03 cùng cỡ; L1 và M2 chưa có số; seed 0, aug 5 độ.
+MoE S1 samebasis: qconv4x3 + router quantum + 3 x Linear(204,10) (24 Bloch + 84 XX/YY/ZZ + 96 tầng 32) (folder Moe; 9.389 tham số FREE, đếm cũ 12.109; quantum 32,7%)  Val tại checkpoint 99,10% (ep 46, val loss 0,031977) = max val [CSV ket_qua/history_S1_samebasis_ep46.csv]
+                                           BẢN CHÍNH. Số tham số FREE: unitary đếm 16/4 (xem CACH_DEM_THAM_SO.txt); M1 ở dòng trên = 14.429 FREE.
+s3_ru2, fusion2, balanced           Chưa có số cuối                      [CHƯA ĐO]
+                                           Theo dõi trong SO_NGHIEN_CUU_QCNN.txt.
+
+Continual learning, Mammoth rot-mnist, 20 task, không aug, validation, seed 0. Không so với các số phía trên.
+cnn-19k (19.060), sgd                      Forgetting 34,01 (val); dòng final 64,82% là test thật với góc mới, chưa có val sau task 20 [ẢNH]
+mlp-19k (18.858), er buffer 5120           Val sau task 20: 91,24%; trung bình 20 mốc 90,05%; dòng final 90,32% là test, không dùng để chọn; Forgetting 3,50 (val) [ẢNH, CSV]
+cnn-19k (19.060), er buffer 5120           Val sau task 20: 95,43%; trung bình 20 mốc 94,87%; dòng final 94,94% là test, không dùng để chọn; Forgetting 2,45 (val) [ẢNH, CSV]
+qcnn-fusion (19.202), er buffer 5120       Val sau task 20: 89,19%; trung bình 20 mốc 89,09%; dòng final 88,77% là test, không dùng để chọn; Forgetting 5,21 (val) [ẢNH]
+mlp-12k (11.970), er buffer 5120           Val sau task 20: 88,54%; Backward Transfer -3,79; Forgetting 4,36 (val) [CSV]
+cnn-12k (12.070), er buffer 5120           Val sau task 20: 94,38%; Backward Transfer -2,64; Forgetting 2,89 (val) [CSV]
+qcnn-fusion-level32 (19.118), er buffer 5120 Val sau task 20: 91,50%; trung bình 20 mốc 90,65%; dòng final 90,65% là test, không dùng để chọn; Backward Transfer -3,39; Forgetting 3,85 (val) [LOG]
+qcnn-fusion-typed4 (12.010), er buffer 5120 Val sau task 20: 89,65%; trung bình 20 mốc 88,79%; dòng final 89,36% là test, không dùng để chọn; Backward Transfer -3,94; Forgetting 4,42 (val) [LOG, CSV]
+qcnn-fusion-level32-deep12p (18.418; encoder cổ điển 1.646), er buffer 5120 Val sau task 20: 94,58%; dòng final 94,60% là test, không dùng để chọn; Backward Transfer -2,19; Forgetting 2,59 (val) [ẢNH 2026-11-14, log máy train 14-Nov-26 14:15]
+qcnn-fusion-level32-qconv4x3 (17.264; encoder quantum 492), er buffer 5120 Val sau task 20: 93,92%; trung bình 20 mốc 93,14%; dòng final 93,89% là test, không dùng để chọn; chạy bằng mammoth_full_package (máy/torch có thể khác các dòng trên) [CSV]
+cnn-19k (19.060), derpp 0,5/0,5, buffer 500 Val sau task 20: 92,79%; trung bình 20 mốc 93,92%; dòng final 90,07% là test, không dùng để chọn [ẢNH]
+cnn-19k (19.060), er buffer 500            Val sau task 20: 89,09%; Forgetting 9,25 (val); dòng final 87,70% là test thật với góc mới, không dùng để chọn [ẢNH]
+
+2. CÁC MỐC CAO NHẤT CÓ THỂ KẾT LUẬN HIỆN TẠI
+---------------------------------------------
+- Validation cao nhất có log gốc trong workspace: 98,84%, run 3 nhánh + MLP-256 + augmentation, epoch 53. Checkpoint được chọn theo val loss đạt 98,80% ở epoch 52.
+- Official test cao nhất được ghi trong báo cáo: TTA 5 view đạt 98,91%, từ single-view 98,75%. Con số này chưa có raw JSON để đối chiếu tại workspace hiện tại.
+- Không có kết quả nào trong tài liệu hiện có xác nhận đạt 99% official test.
+- Bản ít tham số tốt nhất hiện có là CNN cổ điển cnn3k: 98,64% với 2.988 tham số [NGƯỜI DÙNG BÁO, ẢNH]. Chưa có QCNN nào cùng cỡ đạt mức này.
+
+3. SỐ LIỆU CHƯA GÁN CHẮC ĐƯỢC CHO MỘT Ý TƯỞNG
+---------------------------------------------
+File `runs/mlp_aug_3phase/aug_dropout_validation.csv` có 5 trial validation: 98,44%; 98,40%; 98,54%; 98,47%; 98,54%; trung bình 98,478%, độ lệch chuẩn khoảng 0,062 điểm phần trăm. File không lưu tên model/checkpoint hoặc mô tả cách tạo trial, nên không gán con số này vào một kiến trúc hay dùng so sánh với bảng trên.
+
+4. SO SÁNH CẦN THẬN TRỌNG
+-------------------------
+- MLP-256 có số tham số lớn hơn MLP-16 khoảng 12 lần (~226,8k so với ~18,7k), trong khi các báo cáo cũ cho thấy chênh validation khoảng 0,2–0,3 điểm phần trăm. Đây là so sánh tham khảo; cần xác nhận cùng seed/split và quy tắc chọn checkpoint trước khi kết luận.
+- 98,52% và 98,63% trên validation 10.000 ảnh chỉ chênh khoảng 11 ảnh đúng. Hiện chưa có đủ kết quả cuối và nhiều seed để khẳng định dropout hay thay scan order tạo cải thiện thật.
+- Accuracy train không đưa vào bảng vì train dùng augmentation, còn validation/test dùng ảnh sạch.
+- Max accuracy qua nhiều epoch có thể cao hơn checkpoint được chọn theo validation loss. Luôn ghi riêng cả hai nếu có.
+
+5. NGUỒN ĐỐI CHIẾU TRONG DỰ ÁN
+------------------------------
+- Raw run MLP-256: `runs/mlp_aug_3phase/summary_mlp_aug.json`
+- Raw phase histories MLP-256: `runs/mlp_aug_3phase/fq_mlp_aug_phase1_pretrain_history.csv`,
+  `fq_mlp_aug_phase2_refine_history.csv`, `fq_mlp_aug_phase3_reupload_history.csv`
+- Các mốc MLP-16/KD/TTA: `BAO_CAO_CAI_TIEN_MLP16.txt`
+- Tổng hợp đánh giá hiện tại: `DANH_GIA_KIEN_TRUC_VA_DE_XUAT.txt`
+- Kiến trúc 2 nhánh multiscale: `full_quantum_16x16_2branch_multiscale_mlp16/`
+- Sổ tổng hợp mới nhất, gồm bài học và hướng tiếp theo: `SO_NGHIEN_CUU_QCNN.txt`
+
+6. CẬP NHẬT BẢNG KHI CÓ RUN MỚI
+-------------------------------
+Với mỗi ý tưởng mới, ghi tối thiểu:
+- Tên folder/run, input size, số nhánh, readout/hidden size, augmentation và seed/split-seed.
+- Số tham số runner in ra.
+- Validation accuracy tại checkpoint được chọn và max validation accuracy/epoch.
+- Official test accuracy chỉ sau khi đã chốt model bằng validation.
+- Đường dẫn summary JSON, history CSV và test JSON để kiểm tra lại.

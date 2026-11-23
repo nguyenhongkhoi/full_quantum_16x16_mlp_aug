@@ -1,0 +1,52 @@
+# ==============================================================================
+# MAMMOTH rot-mnist: level32 + encoder cổ điển deep12p (2026-11-13)
+# Chạy trên máy train, trong folder Mammoth (commit e75a491), trong venv có CUDA:
+#   C:\Users\Public\full_quantum_16x16_mlp_aug_5deg\full_quantum_16x16_mlp_aug\mammoth
+# Cấu hình giống mọi run er buffer 5120 trước: Adam lr 1e-3, batch 32, replay 32, 1 epoch mỗi task, seed 0,
+# validation 10 complete, KHÔNG augmentation. Cùng seed và buffer nên cùng dãy góc với level32.
+# ==============================================================================
+$env:PYTHONIOENCODING = "utf-8"
+
+# 0. Chép code vào Mammoth. <project> = folder chứa mammoth_level32_front (giải nén zip mammoth_level32_front.zip).
+#    backbone mới là bản mở rộng của backbone cũ: mọi backbone cũ giữ nguyên, chỉ thêm 3 backbone mới.
+#    Không xóa checkpoints, logs.
+Copy-Item -Recurse -Force <project>\mammoth_level32_front\backbone\* .\backbone\
+Copy-Item -Force <project>\mammoth_level32_front\test_quantum_backbones.py .
+Copy-Item -Force <project>\mammoth_level32_front\run_mammoth.py .
+Copy-Item -Force <project>\mammoth_level32_front\export_mammoth_logs.py .
+
+# 1. Kiểm tra (không cần MNIST). Gửi toàn bộ output. Phải có dòng "OK  deep12p front end" và "All checks passed."
+python test_quantum_backbones.py --device cuda:0
+
+# 2. Chạy thử vài bước, phải kết thúc không lỗi.
+python main.py --dataset rot-mnist --model er --backbone qcnn-fusion-level32-deep12p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32 --debug_mode 1
+
+# 3a. Sàng lọc 6 task, dừng sau task 6, không chạy test cuối. 18.418 tham số (quantum 4.824, encoder 1.646, head 11.948).
+python run_mammoth.py --name qcnnfusionlevel32deep12p_er_buf5120_seed0 --end_at 6 --dataset rot-mnist --model er --backbone qcnn-fusion-level32-deep12p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 3b. Đối chứng cổ điển, cùng encoder, mạch + head thay bằng CNN cùng cỡ (18.392). Nhanh, chạy đủ 20 task.
+python run_mammoth.py --name enccnndeep12p_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone enc-cnn-deep12p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 3c. (Tùy chọn) Chỉ encoder + Linear (1.976). Nhanh, đủ 20 task.
+python run_mammoth.py --name enclineardeep12p_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone enc-linear-deep12p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 4. Chỉ khi 3a "giữ": chạy lại từ đầu đủ 20 task (--resume không dùng được trên rot-mnist).
+python run_mammoth.py --name qcnnfusionlevel32deep12p_er_buf5120_seed0_full --dataset rot-mnist --model er --backbone qcnn-fusion-level32-deep12p --optimizer adam --lr 1e-3 --batch_size 32 --n_epochs 1 --seed 0 --device cuda:0 --validation 10 --validation_mode complete --enable_other_metrics 1 --num_workers 0 --buffer_size 5120 --minibatch_size 32
+
+# 5. Xuất CSV sau mỗi run, gửi mammoth_mean.csv và mammoth_tasks.csv (hoặc ảnh các dòng "Accuracy for N task(s)",
+#    Backward Transfer, Forgetting).
+python export_mammoth_logs.py
+
+# ------------------------------------------------------------------------------
+# NGƯỠNG CHỐT TRƯỚC (Claude đề xuất 2026-11-13), validation, er buffer 5120, seed 0.
+# 3a, trung bình 6 mốc sau task 6, so với level32 (91,86; học ngay task 1-6 TB 94,27):
+#   giữ  nếu >= 92,16 và học ngay TB task 1-6 >= 94,57
+#   ngang nếu 91,56 - 92,16
+#   bỏ   nếu < 91,56
+# So với CNN sau 6 task: chỉ nói "hơn cnn-19k" nếu >= 94,94 (cnn-19k 94,64); cnn-12k 93,01.
+# 4, sau task 20: hơn cnn-19k nếu >= 95,73 (cnn-19k 95,43); hơn level32 nếu >= 91,80 (level32 91,50); mlp-19k 91,24.
+# Phần quantum có ích nếu qcnn-fusion-level32-deep12p >= enc-cnn-deep12p + 0,30 ở cùng số task;
+# ngang nếu trong ±0,30; kém nếu thấp hơn từ 0,30.
+# Dự đoán của Claude (ghi để kiểm): 3a khoảng 92,5-93,5 (giữ, nhưng dưới cnn-19k); 3b gần cnn-19k (khoảng 94-95,5);
+# nên nhiều khả năng mạch KHÔNG hơn đối chứng cổ điển trên Mammoth.
+# Dòng "final" là test thật, không dùng để chọn. Một seed: chênh dưới 0,3 chưa đủ kết luận.

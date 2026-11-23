@@ -1,0 +1,108 @@
+﻿CÁCH ĐẾM SỐ THAM SỐ - folder fullquantum_16x16_frontQuan4x3_Moe
+Viết 2026-11-20. Code đếm: models/moe_model.py, hàm free_parameter_count và count_parameters().
+
+================================================================================
+1. VÌ SAO PHẢI ĐẾM LẠI
+================================================================================
+Mạch dùng UNITARY TỔNG QUÁT HỌC ĐƯỢC (models/unitary.py), không phải cổng xoay với vài góc:
+  - lưu một ma trận phức A cỡ d x d  (d = 2 cho cổng 1 qubit, d = 4 cho cổng 2 qubit)
+    -> 2 d^2 số thực: 8 (1 qubit), 32 (2 qubit);
+  - dùng H = (A + A^dagger) / 2 (Hermite), U = exp(iH).
+Phần phản Hermite của A bị triệt tiêu khi lấy (A + A^dagger)/2: nó không ảnh hưởng đầu ra, gradient bằng 0,
+đứng yên ở giá trị khởi tạo. Vậy MỘT NỬA số lưu trong A là thừa.
+
+Bậc tự do thật của một unitary d x d:
+  - đếm theo H Hermite:          d^2       -> 4 (1 qubit), 16 (2 qubit)        <- "FREE"
+  - bỏ thêm pha toàn cục (vết H): d^2 - 1   -> 3 (1 qubit), 15 (2 qubit)        <- "FREE, bỏ pha"
+    (15 = số tham số của unitary 2 qubit tổng quát trong SU(4); phân rã ra cổng gốc: 3 CNOT + 15 góc.)
+
+Đếm cũ (số "Total" trong log trước 2026-11-20, mọi tỷ lệ quantum ghi trong sổ trước ngày này) dùng 8 / 32:
+THỪA GẤP ĐÔI phần unitary. Việc train không sai, chỉ con số báo cáo sai.
+
+================================================================================
+2. ĐẾM TỪNG KHỐI (mặc định: --front qconv4x3, 3 cây, side-level 32, router quantum 8 qubit)
+================================================================================
+2.1 Encoder qconv4x3 (models/front.py)                                      cũ    FREE
+  3 tầng; mỗi tầng 4 lớp x 9 qubit x 3 góc (RZ RY RZ) = 108 góc                324    324   (quantum)
+  readout cổ điển Linear(27, 2) mỗi tầng = 27*2 + 2 = 56; 3 tầng                168    168   (cổ điển)
+  -> encoder                                                                   492    492
+  Góc là góc thật (không qua unitary tổng quát) nên không đổi.
+  Ghi chú: RZ cuối của một lớp có thể giao hoán với CZ và gộp với RZ đầu lớp sau, nên có thể còn dư
+  một ít góc; CHƯA trừ phần này.
+
+2.2 Một cây level32 (models/tn_core.py, models/reupload.py)                    cũ    FREE  bỏ pha
+  5 tầng conv-pool (256->128->64->32->16->8 qubit); mỗi tầng 2 unitary 2 qubit
+  (conv, pool) dùng chung cho mọi cặp: 5 x 2 = 10 unitary 2 qubit               320    160    150
+  hệ số re-upload: 8 số (1 mỗi qubit cuối)                                        8      8      8
+  4 lớp strongly-entangling trên 8 qubit; mỗi lớp 8 unitary 1 qubit
+  + 8 unitary 2 qubit (vòng):  4 x (8 x 8 + 8 x 32) = 1.280 (cũ);
+                               4 x (8 x 4 + 8 x 16) =   640 (FREE);
+                               4 x (8 x 3 + 8 x 15) =   576 (bỏ pha)            1.280    640    576
+  -> một cây                                                                   1.608    808    734
+  -> 3 cây                                                                     4.824  2.424  2.202
+  Đo Pauli (276 = 24 Bloch + 252 tương quan) và Bloch tầng 32 (96): KHÔNG có tham số.
+
+2.3 Router quantum (models/router.py, --router quantum, lưới 4x4, 8 qubit, 2 vòng, ansatz se)
+  2 lớp (1 mỗi vòng re-upload); mỗi lớp 8 unitary 1 qubit + 8 unitary 2 qubit:
+    2 x (8 x 8 + 8 x 32) = 640 (cũ);  2 x (8 x 4 + 8 x 16) = 320 (FREE);  2 x (8 x 3 + 8 x 15) = 288 (bỏ pha)
+  hệ số đọc ra s_e (cổ điển): 3
+  -> router                                                                     643    323    291
+  Router cổ điển (đối chứng): linear 99, mlp18 651 - toàn bộ cổ điển, không đổi.
+
+2.4 Head mỗi cây (cổ điển, Linear(n, 10) = 10 n + 10; x 3 cây)
+  linear   (M1)   Linear(372, 10)     3.730 x 3 = 11.190
+  samebasis (S1)  Linear(204, 10)     2.050 x 3 =  6.150
+  zz       (S2)   Linear(148, 10)     1.490 x 3 =  4.470
+  nocorr   (N1)   Linear(120, 10)     1.210 x 3 =  3.630
+  bloch8          Linear(24, 10)        250 x 3 =    750
+  fusion  (2c)    head MLP 2c                       11.948
+  Head không có unitary nên không đổi.
+
+================================================================================
+3. TỔNG VÀ TỶ LỆ QUANTUM
+================================================================================
+Phần quantum = góc encoder (324) + 3 cây + mạch router (không tính hệ số s_e).
+Phần cổ điển = Linear của encoder (168) + head + hệ số s_e (3) (hoặc cả router cổ điển).
+
+                       Head    Tổng cũ   Tổng FREE   Bỏ pha    Quantum FREE        Quantum cũ
+  M1   linear+router   11.190   17.149    14.429     14.175    3.068 = 21,3%       33,75%
+  S1   samebasis       6.150    12.109     9.389      9.135    3.068 = 32,7%       47,8%
+  S2   zz              4.470    10.429     7.709      7.455    3.068 = 39,8%       55,5%
+  N1   nocorr          3.630     9.589     6.869      6.615    3.068 = 44,7%       60,4%
+  L1   router none     11.190   16.506    14.106     13.884    2.748 = 19,5%       31,2%
+  M2   router mlp18    11.190   17.157    14.757     14.535    2.748 = 18,6%       30,0%
+  2c   head MLP        11.948   17.264    14.864       -       2.748 = 18,5%       29,8%
+  (Quantum FREE với router quantum: 324 + 2.424 + 320 = 3.068; không router: 324 + 2.424 = 2.748.
+   Bỏ pha: 324 + 2.202 + 288 = 2.814.)
+
+Ví dụ M1: 324 (góc encoder) + 168 (Linear encoder) + 2.424 (3 cây) + 320 (mạch router) + 3 (s_e)
+          + 11.190 (head) = 14.429.
+
+================================================================================
+4. KIỂM TRÊN MÁY TRAIN
+================================================================================
+- Log của train.py (từ 2026-11-20) có 2 dòng:
+    "Parameter counts: ... Total=..."            <- đếm CŨ (giữ để so với run trước)
+    "FREE parameters (...): ... Total=..."       <- đếm ĐÚNG; dùng dòng này để báo cáo
+- python .\test_model.py kiểm các số ở mục 3 (dòng "[PASS] free parameters ...").
+- Checkpoint cũ không cần train lại: chỉ đọc lại bằng code mới, count_parameters() trả cả hai cách đếm.
+
+================================================================================
+5. BÁO CÁO TRONG BÀI
+================================================================================
+- Dùng số FREE bỏ pha (15 / 3) hoặc FREE (16 / 4), ghi rõ quy ước; khuyên: bỏ pha (chuẩn SU(d)).
+- Nói rõ mỗi cổng 2 qubit là unitary tổng quát học được (15 tham số), không phải cổng gốc;
+  trên phần cứng mỗi cổng cần phân rã (khoảng 3 CNOT + 15 góc).
+- So "cùng cỡ" với CNN dùng tổng FREE: M1 ~ --widths 13 26 (14.388); S1 ~ --widths 10 21 (9.370)
+  hoặc 11 21 (9.571); N1 ~ --widths 12 17 (6.852). (SmallCNN: 12a + 9ab + 16b^2 + 14b + 10.)
+- Các folder khác (level32_qconv, linhead, mammoth, ...) dùng cùng LearnedUnitary nên cũng đếm thừa
+  phần cây như vậy; số trong sổ trước 2026-11-20 phải hiểu là đếm cũ.
+
+================================================================================
+6. --share-final (thêm 2026-11-20)
+================================================================================
+3 cây dùng chung MỘT khối 8 qubit cuối (640 FREE, 576 bỏ pha, 1.280 cũ); conv-pool và re-upload vẫn riêng.
+Tiết kiệm 2 khối: FREE 2 x 640 = 1.280.
+  S1 + share-final (S3): cũ 9.549 | FREE 8.109 | bỏ pha 7.983 | quantum FREE (324 + 1.144 + 320) / 8.109 = 22,0%
+  (3 cây: conv-pool 3 x 160 + re-upload 3 x 8 + 1 khối 640 = 1.144.)
+  CNN cùng cỡ: --widths 11 19 (8.065).

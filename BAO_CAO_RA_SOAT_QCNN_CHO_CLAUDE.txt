@@ -1,0 +1,39 @@
+﻿BÁO CÁO BÀN GIAO QCNN CHO CLAUDE
+Cập nhật: 2026-11-03, 21:23 (Asia/Saigon)
+Workspace: D:\data_system\full_quantum_16x16_mlp_aug
+
+MỤC TIÊU
+Ưu tiên accuracy MNIST cao với ít tham số, chạy trên PyTorch simulator. Chỉ xem xét code ngoài folder `noread`. Báo cáo này là rà soát code/log và tài liệu; không sửa kiến trúc, không train/test.
+
+TRẠNG THÁI GẦN NHẤT THEO NHẬT KÝ
+- CNN3k: khoảng 2.988 tham số; người dùng báo run dừng sớm với checkpoint validation 98,64% (epoch 33), một seed, chưa có official test hoặc raw summary trong workspace.
+- CNN2k: khoảng 1.990 tham số; 98,12% validation ở giữa phase 3, chưa phải kết quả cuối.
+- QCNN bond-2 b2 (3.066 tham số): validation cao nhất được báo 96,87% ở các epoch đầu phase 2; đang/đã chạy dở, chưa có kết quả cuối trong workspace.
+- tree1q (3.060 tham số): 96,39% validation ở epoch đầu phase 2; chưa phải kết quả cuối.
+- R0 hai nhánh đa tỉ lệ (12.420 tham số): validation cao nhất phase 1 được báo 97,45% (epoch 15); epoch khoảng 690–1.113 giây, chưa phải kết quả cuối.
+- Mốc cũ MLP-256: summary local ghi 98,80% tại checkpoint và 98,84% max validation; khoảng 226,8k tham số.
+Các số giữa run và số CNN3k hiện dựa trên ảnh/người dùng báo được ghi trong `AI_COLLAB_CLAUDE_CODEX.txt`; chưa có artifacts mới của b2/tree1q/R0 trong workspace. Không gọi chúng là kết quả cuối.
+
+PHÁT HIỆN TỪ CODE
+1. Trong QCNN 1-qubit, `conv` và `pool` là hai U(4) liên tiếp trên cùng cặp disjoint rồi mới trace. Tổ hợp của chúng vẫn là một U(4); vì vậy hai gate đầy đủ chưa mở rộng họ hàm biểu diễn và tạo các hướng tham số dư. Cân nhắc thay bằng gate convolution xen kẽ cặp chẵn/lẻ trước pooling.
+2. R0 side tap bổ sung đặc trưng tầng giữa, nhưng stage 8-qubit không khôi phục được chi tiết đã mất do trace ở tầng trước.
+3. Bond-2 có ý tưởng giữ trạng thái hai qubit và tương quan trước khi trace; khác tree1q nhưng hiện điểm giữa run chưa ủng hộ kết luận nó tốt hơn.
+4. Theo số liệu đang có, CNN3k là mốc tốt nhất trong nhóm ít tham số. Chưa có QCNN mới nào chứng minh vượt nó trên protocol hoàn chỉnh.
+
+MẠCH THAM KHẢO
+- QCNN gốc: gate cục bộ chia sẻ tham số, cặp tương tác xen kẽ và pooling phân cấp; bài gốc tập trung phân loại trạng thái lượng tử, không bảo đảm tăng accuracy MNIST cổ điển.
+- Hur et al.: mạch QCNN nông chỉ dùng tương tác hai qubit; số 98,4% của bài là phân loại MNIST 0-vs-1, không phải 10 lớp.
+- Equivariant QCNN: có thể học hỏi cách chia sẻ theo đối xứng; không áp dụng nguyên vẹn quay 90°/phản chiếu cho MNIST chuẩn vì có thể đổi nghĩa chữ số.
+- MPS đạt test error 0,97% trong một nghiên cứu MNIST với bond dimension 120; đây là tensor network cổ điển và không phải mốc so sánh công bằng cho bond-2 ít tham số.
+- Bài PRX Quantum 2026 cho thấy một số QCNN chuẩn trên benchmark “locally easy” có thể được surrogate cổ điển mô phỏng/đối sánh tốt; không suy ra mọi model hiện tại đều được chứng minh mô phỏng hiệu quả suốt quá trình train.
+
+NGUỒN GỐC
+QCNN gốc: https://dash.harvard.edu/entities/publication/c9283349-c04f-4731-bdf8-7b448651e695
+QCNN trainability: https://doi.org/10.1103/PhysRevX.11.041011
+QCNN classically simulable (2026): https://doi.org/10.1103/8qt9-72ts
+QCNN cho dữ liệu cổ điển: https://arxiv.org/abs/2108.00661
+Equivariant QCNN: https://arxiv.org/abs/2310.02323
+MPS cho MNIST: https://arxiv.org/abs/1605.05775
+
+ĐỀ NGHỊ BƯỚC KẾ TIẾP
+Chờ và ghi kết quả cuối của R0, b2, tree1q, CNN2k/3k trên cùng protocol trước khi tạo run mới. Nếu tiếp tục QCNN thuần, ưu tiên một ablation gate cục bộ xen kẽ chẵn/lẻ rồi pooling, chia sẻ tham số theo tầng và giữ ngân sách gần 3k; so với CNN3k. Nếu làm hybrid, giữ ngân sách tổng tương đương CNN3k. Chỉ dùng validation để chọn; test official sau khi chốt. Không hứa đạt 99%.

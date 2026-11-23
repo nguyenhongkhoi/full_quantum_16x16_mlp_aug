@@ -1,0 +1,83 @@
+DANH GIA KIEN TRUC VA DE XUAT - FullQuantum MNIST 16x16 (03/11/2026)
+Co so: doc code + log + tinh tay. CHUA chay gi. Muc 3-4 la gia thuyet, can ket qua that.
+
+1. HIEN TRANG
+- Model moi: 2 nhanh (row, Morton), 12.420 tham so, chua co ket qua train.
+- Moc da doc log: 3 nhanh + MLP-256 (~226k tham so), aug 8 do: val 98,80% (max 98,84%),
+  62 epoch, ~1000 s/epoch, ~17,3 gio.
+- Moc MLP-16 (98,52-98,63%) chi lay tu bao cao va 1 file trong noread/, chua doi chieu log.
+
+2. PHAT HIEN TU CODE
+a) Co chai thong tin (quan trong nhat): sau moi lan trace, moi node chi con 1 qubit = toi da
+   3 so thuc. 8 qubit cuoi la tich cua cac trang thai rieng => chi ~24 so thuc.
+   276 dac trung Pauli la ham cua ~24 so do; stage strongly-entangling khong them thong tin
+   ve anh. Side tap nang len ~48 so thuc: day la thay doi co gia tri nhat cua ban moi.
+b) MLP-256 lon gap 12 lan nhung chi hon ~0,2-0,3 diem => gioi han nam o core, khong o head.
+c) Conv va pool cung tac dong len 1 cap qubit => gop lai chi la 1 unitary. Moi block luu
+   32 tham so, hieu dung toi da 12. Khong co gate noi qua ranh gioi giua cac cap.
+d) Tham so: 87% la co dien (2 readout = 10.804/12.420); core chi 1.600.
+e) Chi phi: theo dem phep nhan, stage 8 qubit + 276 phep do chiem >99% tinh toan cua nhanh;
+   tree chi ~0,2%. Chua do thoi gian thuc.
+f) Khoi tao init_scale=0.01: gate gan identity nen ban dau moi node gan nhu chi giu con trai.
+   Nhanh row: 8 pixel con lai nam o cot 0, gan nhu luon den. Adam van thoat duoc, nhung co the
+   de lai lech trong so giua cac pixel (chua do).
+g) Morton gom vung 2D tot; row chi tron theo chieu doc o block cuoi. Ca hai deu khong overlap,
+   nen dich 1 pixel lam doi cach ghep cap.
+
+3. DANH GIA KHA THI
+- Ban hien tai dang de chay lam moc doi chung. Kha nang dat 99% thap vi van giu co chai 1 qubit
+  (nhan dinh chu quan).
+- So "giam 33,7%" bi phong dai: 2.400/18.726 tham so cu la du thua, khong co tac dung. So thuc:
+  16.326 -> 12.420, giam 23,9%.
+- Ban moi doi cung luc nhieu yeu to (so nhanh, thu tu quet, side tap, unitary, dropout, co the ca
+  aug 8->5 do) nen khong the quy ket nguyen nhan neu ket qua thay doi.
+- Sai so: o 98,6% voi 10.000 anh, CI 95% khoang +-0,23 diem. 98,52 va 98,63 chua khac nhau co y nghia.
+
+4. DE XUAT: CAY MORTON BOND 2 QUBIT, BO STAGE 8 QUBIT
+Y tuong: moi node giu 2 qubit (15 so thuc) thay vi 1 qubit (3 so thuc). Van mo phong chinh xac
+vi cac cay con doc lap.
+  16x16 -> RY -> Morton
+  Level A: 2 pixel -> 2 qubit, 1 gate (128 node)
+  Level B-F: ghep 2 con [a0 a1][b0 b1], gate (a1,b0) TRUOC, roi (a0,a1), (b0,b1), trace a0 va b1
+     => 64, 32, 16, 8, 4 node; moi level 3 gate
+     Thu tu nay bat buoc: lam nguoc lai thi truoc gate cuoi chi la tich 2 qubit (6 so thuc).
+  Doc: 16 o 4x4 (15 Pauli/o) va 4 o 8x8 (15 Pauli/o)
+Core: 16 + 5x3x16 = 256 tham so. Tinh toan ~1 trieu phep nhan/anh, so voi ~43 trieu/nhanh hien tai.
+
+Bien the        Head                                                 Tong
+B0              Linear(60,10)                                        866
+B1              Linear(15,6) dung chung + Linear(156,10)             1.922
+B2              Linear(15,6) dung chung + 156->16->10 (LayerNorm)    3.066
+
+Rui ro: trang thai co the tien ve mixed khi len cao lam dac trung nho; kho toi uu hon.
+Gia chinh: khoi tao gate can bang (vd sqrt-iSWAP) va chuan hoa dac trung khong tham so.
+Neu van underfit: giu 3 qubit moi node (63 so thuc), chi phi ngang stage 8 qubit hien tai.
+
+5. THU TU CHAY (cung split, aug 5 do, seed 0)
+R0  Doi chung: dung lenh trong command.txt cua folder 2branch, khong sua. Du kien ~11-12 gio neu
+    62 epoch (uoc luong).
+R1  CNN co dien nho: ClassicalCNN(parameter_matched=True), 5.578 tham so. Cho biet tran o co tham
+    so tuong duong; can them co de chon model nay trong runner.
+R2  Bo stage 8 qubit: giu tree, head nhan 48+24=72 dac trung, 2 nhanh = 3.060 tham so.
+    Neu chi kem R0 duoi ~0,2 diem => bo stage nay.
+R3  B0, B1, B2 voi 1 nhanh Morton. Neu kem R2 => dung, xem lai thiet ke.
+R4  Bien the tot nhat + 2 phep dich anh dung chung tham so (+2 pixel), trung binh logits: khong
+    them tham so, giam loi ghep cap co dinh.
+R5  Chot: 3 seed. Sau do moi xet them lich LR cosine hoac KD. Test chinh thuc chay dung 1 lan cuoi.
+
+Lich LR: log cho thay val nhay 97,73 -> 98,53 ngay khi giam LR (epoch 20 -> 21). Lich hien tai
+co the chua toi uu, nhung de doi sau de khong lan voi thay doi kien truc.
+
+Khong uu tien: them nhanh, tang head, len 32x32 (da ~98,6%), KD som (khong go co chai).
+
+6. CAN GUI LAI SAU MOI RUN
+summary_mlp_aug.json, history_full_quantum_mlp_aug.csv, config_mlp_aug.json, so tham so runner in ra,
+thoi gian/epoch, traceback neu loi.
+
+7. GHI CHU
+- Da lo doc 1 file trong noread/ (de_xuat_distillation_mlp16.txt); so 0,2-0,3 diem o muc 2b va moc
+  MLP-16 lay tu do. Khong doc gi them trong noread/.
+- Cac so 99% va muc tang accuracy chua co bang chung thuc nghiem; do R0-R3 quyet dinh.
+
+8. CẬP NHẬT 2026-11-04
+Đề xuất Morton bond-2 ở mục 4 đã được chạy và không đạt mục tiêu: b2 đạt 97,10% (max 97,15%), thấp hơn cnn3k 98,64%. Chẩn đoán cổ chai 1 qubit ở mục 2a không được ủng hộ: b2 chỉ hơn tree1q khoảng 0,25 điểm. Xem số mới nhất trong SO_NGHIEN_CUU_QCNN.txt.

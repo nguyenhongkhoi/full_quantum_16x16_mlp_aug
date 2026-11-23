@@ -1,0 +1,63 @@
+PSEUDOCODE - full architecture, main model S1
+(quanvolution encoder + 3 tree QCNNs (row / column / Morton scan) + quantum router + per-tree linear head)
+Free parameters: 9,389 (quantum circuit 3,068 = 32.7%). MNIST val 99.04%.
+Learned unitaries: U = exp(iH), H Hermitian -> 1-qubit: 4 params, 2-qubit: 16 params (3 / 15 without global phase).
+
+INPUT: image x (28x28, gray, values in [0,1])
+
+# ---------- 1. Pixels -> angles ----------
+x <- resize_bilinear(x, 16x16), clamp to [0,1]
+for each pixel p (256):  theta_p <- x_p ;  phi_p <- 0
+# a pixel is a qubit state |q_p> = RZ(pi*phi_p) RY(pi*theta_p) |0>
+
+# ---------- 2. Quanvolution encoder (3 stages; each stage has ONE circuit shared by all 256 pixels) ----------
+for stage s = 1..3:                                  # params per stage: 108 angles + Linear 56
+    for each pixel p (in parallel):
+        W <- 3x3 window around p (outside the image: qubit |0>)
+        |psi> <- (x)_{k in W} RZ(pi*phi_k) RY(pi*theta_k) |0>          # 9 qubits
+        repeat 4 layers:
+            for each qubit k: apply RZ(a_k) RY(b_k) RZ(c_k)              # 27 learned angles, shared over p
+            apply CZ on the 12 edges of the 3x3 grid
+        f <- (<X_k>, <Y_k>, <Z_k>) for k = 1..9                         # 27 numbers (exact)
+        (dtheta, dphi) <- Linear_s(f)                                    # 27 -> 2, initialised to 0
+        theta_p <- theta_p + dtheta ;  phi_p <- phi_p + dphi            # residual update
+# receptive field 3 -> 5 -> 7 pixels;  encoder: 324 circuit angles + 168 classical
+
+# ---------- 3. Three tree QCNNs (experts), e in {row, column, Morton} ----------
+for each tree e:                                     # 808 free params per tree
+    order the 256 qubits by scan order e
+    rho_i <- |q_i><q_i|                              # one 2x2 density matrix per qubit
+    for level = 1..5:                                # 256 -> 128 -> 64 -> 32 -> 16 -> 8 qubits
+        for each adjacent pair (a, b) in the current order:          # Uc, Up shared by all pairs of the level
+            R <- Up Uc (rho_a (x) rho_b) Uc^+ Up^+                     # Uc, Up: 2-qubit unitaries (16 + 16)
+            rho_new <- Tr_b(R)                                         # keep a, trace out b
+        if 32 qubits remain:  side_e <- (<X>,<Y>,<Z>) of each of the 32 qubits     # 96 features
+    # now 8 qubits, still independent; final qubit i stands for pixels 32i .. 32i+31
+    for i = 0..7:  rho_i <- RY(s_i * mean_angle(pixels of i)) rho_i RY^+       # re-upload, s_i learned (8)
+    rho <- rho_0 (x) ... (x) rho_7                                    # 256x256 density matrix
+    for layer l = 0..3:                                               # strongly-entangling block, 640 params
+        for i = 0..7:  apply 1-qubit unitary V_{l,i}                  # 8 x 4
+        r <- l + 1
+        for i = 0..7:  apply 2-qubit unitary W_{l,i} on (i, (i + r) mod 8)     # 8 x 16, ring
+    corr_e <- <X_i>,<Y_i>,<Z_i> (24) + <X_iX_j>,<Y_iY_j>,<Z_iZ_j> for 28 pairs (84)
+    f_e <- concat(corr_e, side_e)                                     # 24 + 84 + 96 = 204 features
+    l_e <- Linear_e(f_e)                                              # 204 -> 10 logits (2,050 params)
+
+# ---------- 4. Quantum router ----------
+c <- average (theta, phi) over a 4x4 grid of the 16x16 image          # 16 cells
+|chi> <- |0>^8
+for round t = 0..1:                                                   # data re-uploading
+    for qubit k = 0..7:  apply RZ(pi*phi_c) RY(pi*theta_c), c = 8t + k
+    for k = 0..7: apply 1-qubit unitary;  for k = 0..7: apply 2-qubit unitary on (k, (k + t + 1) mod 8)
+z_e <- s_e * <Z_q(e)> for q(e) = 0, 2, 5                            # s_e learned, init 0
+g <- softmax(z_1, z_2, z_3)                                           # router: 320 circuit + 3
+
+# ---------- 5. Mixture ----------
+logits <- sum_e g_e * l_e                                             # 10 classes
+loss   <- cross_entropy(logits, y) + 0.01 * balance(g)                # balance = 3 * sum_e mean(g_e)^2 - 1
+
+NOTES
+- Router reads the encoder output, not the trees: all 3 trees always run; g only weights their logits.
+- All circuits are simulated exactly (statevector / density matrix); inside a tree only the last 8 qubits
+  are entangled, so the model is classically simulable.
+- Parameter count: encoder 492 + 3 trees 2,424 + router 323 + heads 6,150 = 9,389.
