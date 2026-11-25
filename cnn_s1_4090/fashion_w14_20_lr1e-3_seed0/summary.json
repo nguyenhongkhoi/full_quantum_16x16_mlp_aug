@@ -1,0 +1,21 @@
+{
+  "name": "fashion_w14_20",
+  "widths": [
+    14,
+    20
+  ],
+  "lr": 0.001,
+  "seed": 0,
+  "best_val_acc": 0.902,
+  "best_acc_epoch": 44,
+  "best_val_loss": 0.2632056048393249,
+  "best_loss_epoch": 44,
+  "ck_val_acc": 0.902,
+  "total_epochs": 50,
+  "total_time_sec": 2583.1,
+  "param_counts": {
+    "conv": 2748,
+    "head": 6630,
+    "total": 9378
+  }
+}

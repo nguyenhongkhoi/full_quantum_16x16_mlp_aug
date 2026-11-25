@@ -1,0 +1,21 @@
+{
+  "name": "fashion_w10_21",
+  "widths": [
+    10,
+    21
+  ],
+  "lr": 0.001,
+  "seed": 0,
+  "best_val_acc": 0.9028,
+  "best_acc_epoch": 48,
+  "best_val_loss": 0.27027163565158846,
+  "best_loss_epoch": 49,
+  "ck_val_acc": 0.9021,
+  "total_epochs": 50,
+  "total_time_sec": 2675.7,
+  "param_counts": {
+    "conv": 2073,
+    "head": 7297,
+    "total": 9370
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "args": {
+    "dataset": "fashion",
+    "data_root": "..\\mnist_data",
+    "device": "cuda",
+    "batch_size": 64,
+    "num_workers": 0,
+    "seed": 0,
+    "split_seed": 20260911,
+    "limit_samples": 0,
+    "aug_degrees": 5.0,
+    "aug_translate": 0.05,
+    "aug_interpolation": "bilinear",
+    "preset": "cnn5k",
+    "widths": [
+      10,
+      21
+    ],
+    "hidden": null,
+    "dropout": 0.0,
+    "epochs": 50,
+    "lr": 0.0003,
+    "weight_decay": 0.0,
+    "patience": 10,
+    "lr_factor": 0.5,
+    "lr_patience": 3,
+    "min_lr": 1e-06,
+    "out_dir": ".\\runs\\fashion_w10_21_lr3e-4_seed0"
+  },
+  "widths": [
+    10,
+    21
+  ],
+  "param_counts": {
+    "conv": 2073,
+    "head": 7297,
+    "total": 9370
+  },
+  "timestamp": "2026-11-25 21:00:22"
+}

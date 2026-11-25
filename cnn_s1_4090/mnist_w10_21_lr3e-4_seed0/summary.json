@@ -1,0 +1,21 @@
+{
+  "name": "w10_21",
+  "widths": [
+    10,
+    21
+  ],
+  "lr": 0.0003,
+  "seed": 0,
+  "best_val_acc": 0.9899,
+  "best_acc_epoch": 50,
+  "best_val_loss": 0.030693439181149005,
+  "best_loss_epoch": 41,
+  "ck_val_acc": 0.9896,
+  "total_epochs": 50,
+  "total_time_sec": 2651.0,
+  "param_counts": {
+    "conv": 2073,
+    "head": 7297,
+    "total": 9370
+  }
+}

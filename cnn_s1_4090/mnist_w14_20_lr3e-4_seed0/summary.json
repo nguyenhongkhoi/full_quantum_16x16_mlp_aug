@@ -1,0 +1,21 @@
+{
+  "name": "w14_20",
+  "widths": [
+    14,
+    20
+  ],
+  "lr": 0.0003,
+  "seed": 0,
+  "best_val_acc": 0.9906,
+  "best_acc_epoch": 41,
+  "best_val_loss": 0.02920513409823179,
+  "best_loss_epoch": 49,
+  "ck_val_acc": 0.9902,
+  "total_epochs": 50,
+  "total_time_sec": 2622.1,
+  "param_counts": {
+    "conv": 2748,
+    "head": 6630,
+    "total": 9378
+  }
+}
