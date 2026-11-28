@@ -1,0 +1,31 @@
+Fashion-MNIST: 4 run -> figures
+    qcnn S1_fashion                               params    9389 | MAX 33.59 (ep 2) | CK 33.59 | 2 epoch
+    qcnn fashion_S1_samebasis                     params    9389 | MAX 90.00 (ep 44) | CK 90.00 | 50 epoch
+    cnn  CNN 10-21 (9.370)                        params    9370 | MAX 90.41 (ep 48) | CK 90.37 | 50 epoch
+    cnn  CNN 14-20 (9.378)                        params    9378 | MAX 90.87 (ep 34) | CK 90.56 | 39 epoch
+  convergence_fashion.{png,pdf}
+  convergence_zoom_fashion.{png,pdf}
+  acc_vs_params_fashion.{png,pdf}
+  best_acc_fashion.{png,pdf}
+  lr_fashion.{png,pdf}
+  time_fashion.{png,pdf}
+  router_S1_fashion.{png,pdf}
+  router_fashion_S1_samebasis.{png,pdf}
+  summary_fashion.csv / .md
+MNIST: 5 run -> figures
+    qcnn S1_mnist                                 params    9389 | MAX 12.11 (ep 1) | CK 11.72 | 2 epoch
+    qcnn mnist_S1_samebasis_seed1                 params    9389 | MAX 99.01 (ep 47) | CK 98.97 | 50 epoch
+    qcnn mnist_S1_samebasis_seed2                 params    9389 | MAX 98.87 (ep 47) | CK 98.80 | 50 epoch
+    cnn  CNN 10-21 (9.370)                        params    9370 | MAX 99.23 (ep 39) | CK 99.22 | 48 epoch
+    cnn  CNN 14-20 (9.378)                        params    9378 | MAX 99.25 (ep 30) | CK 99.20 | 38 epoch
+  convergence_mnist.{png,pdf}
+  convergence_zoom_mnist.{png,pdf}
+  acc_vs_params_mnist.{png,pdf}
+  best_acc_mnist.{png,pdf}
+  lr_mnist.{png,pdf}
+  time_mnist.{png,pdf}
+  router_S1_mnist.{png,pdf}
+  router_mnist_S1_samebasis_seed1.{png,pdf}
+  router_mnist_S1_samebasis_seed2.{png,pdf}
+  summary_mnist.csv / .md
+Xong.
