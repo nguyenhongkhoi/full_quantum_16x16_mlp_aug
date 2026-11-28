@@ -171,6 +171,8 @@ def main() -> None:
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--split-seed", type=int, default=20260911)
+    parser.add_argument("--limit-samples", type=int, default=0,
+                        help="Smoke test: chỉ dùng N ảnh train và N ảnh validation (0 = đủ 50.000 / 10.000)")
     parser.add_argument("--aug-degrees", type=float, default=5.0, help="Rotation range in degrees (+/-)")
     parser.add_argument("--aug-translate", type=float, default=0.05, help="Translation range (+/-)")
     parser.add_argument("--aug-interpolation", choices=list(AUG_INTERPOLATION.keys()), default="bilinear")
