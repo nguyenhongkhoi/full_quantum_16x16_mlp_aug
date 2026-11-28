@@ -7,6 +7,13 @@ Layout (SmallCNN, the layout of the earlier cnn1k..cnn5k and of Mammoth cnn-3k/5
     Flatten (16b) -> Linear(16b, h) ReLU [Dropout] -> Linear(h, 10)       (h = b unless --hidden is given)
 Parameters with h = b: 12a + 9ab + 16b^2 + 14b + 10 (BatchNorm running statistics are buffers, not counted).
 The clamp is a no-op for bilinear resizing of [0, 1] images; it is kept to match the QCNN preprocessing exactly.
+
+Layout (StandardCNN, --arch standard: a common VGG-style CNN, reference baseline ~85k parameters, preset std85k):
+    Conv(1->a) BN ReLU, Conv(a->a) BN ReLU, MaxPool2              16x16 -> 8x8
+    Conv(a->b) BN ReLU, Conv(b->b) BN ReLU, MaxPool2              8x8 -> 4x4
+    Global average pool (b) -> Linear(b, h) ReLU [Dropout] -> Linear(h, 10)       (h = 128 unless --hidden)
+Parameters: 9a^2 + 15a + 9ab + 9b^2 + 6b + bh + 11h + 10 (BN weight + bias counted). std85k: a=32, b=70, h=128
+-> 84,754.
 """
 from __future__ import annotations
 
@@ -33,6 +40,14 @@ PRESETS = {
 }
 EXPECTED = {"cnn1k": 934, "cnn2k": 1990, "cnn3k": 2988, "cnn5k": 5578, "cnn12k": 12070, "cnn17k": 17170,
             "cnn19k": 19060, "cnn30k": 30726, "cnn50k": 49984, "cnn85k": 85258}
+
+
+# StandardCNN presets: name: (a, b, hidden)
+STANDARD_PRESETS = {
+    "std85k": (32, 70, 128),  # 84,754
+}
+STANDARD_EXPECTED = {"std85k": 84754}
+ARCHS = ("small", "standard")
 
 
 def preprocess(images: torch.Tensor) -> torch.Tensor:
@@ -66,17 +81,69 @@ class SmallCNN(nn.Module):
         return {"conv": conv, "head": head, "total": conv + head}
 
 
+class StandardCNN(nn.Module):
+    """VGG-style: two blocks of (conv-BN-ReLU) x 2 + max-pool, global average pool, MLP head."""
+
+    def __init__(self, widths: Sequence[int] = (32, 70), hidden: Optional[int] = None, dropout: float = 0.0,
+                 num_classes: int = 10):
+        super().__init__()
+        first, second = widths
+        hidden = hidden or 128
+
+        def conv(cin: int, cout: int) -> list:
+            return [nn.Conv2d(cin, cout, 3, padding=1), nn.BatchNorm2d(cout), nn.ReLU()]
+
+        self.core = nn.Sequential(
+            *conv(1, first), *conv(first, first), nn.MaxPool2d(2),
+            *conv(first, second), *conv(second, second), nn.MaxPool2d(2),
+        )
+        layers = [nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(second, hidden), nn.ReLU()]
+        if dropout > 0:
+            layers.append(nn.Dropout(dropout))
+        layers.append(nn.Linear(hidden, num_classes))
+        self.head = nn.Sequential(*layers)
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        return self.head(self.core(preprocess(images)))
+
+    def count_parameters(self) -> Dict[str, int]:
+        conv = sum(p.numel() for p in self.core.parameters())
+        head = sum(p.numel() for p in self.head.parameters())
+        return {"conv": conv, "head": head, "total": conv + head}
+
+
+def standard_count(a: int, b: int, h: int = 128) -> int:
+    return 9 * a * a + 15 * a + 9 * a * b + 9 * b * b + 6 * b + b * h + 11 * h + 10
+
+
 def resolve_widths(cfg: dict) -> tuple[int, int]:
     """--widths a b overrides --preset."""
     widths = cfg.get("widths")
     if widths:
         return int(widths[0]), int(widths[1])
-    preset = cfg.get("preset", "cnn5k")
+    if cfg.get("arch", "small") == "standard":
+        preset = cfg.get("preset") or "std85k"
+        if preset not in STANDARD_PRESETS:
+            raise ValueError(f"--arch standard: preset must be one of {list(STANDARD_PRESETS)} or --widths a b")
+        a, b, _ = STANDARD_PRESETS[preset]
+        return a, b
+    preset = cfg.get("preset") or "cnn5k"
     if preset not in PRESETS:
         raise ValueError(f"Unknown preset {preset!r}; use one of {list(PRESETS)} or --widths a b")
     return PRESETS[preset]
 
 
-def build_model(cfg: dict) -> SmallCNN:
-    """From run arguments (vars(args)) or the args saved in a checkpoint config."""
+def resolve_hidden(cfg: dict) -> int:
+    """--hidden overrides; default 128 for standard (all STANDARD_PRESETS use 128), b for small."""
+    if cfg.get("hidden"):
+        return int(cfg["hidden"])
+    if cfg.get("arch", "small") == "standard":
+        return 128
+    return resolve_widths(cfg)[1]
+
+
+def build_model(cfg: dict) -> nn.Module:
+    """From run arguments (vars(args)) or the args saved in a checkpoint config (old configs: arch small)."""
+    if cfg.get("arch", "small") == "standard":
+        return StandardCNN(widths=resolve_widths(cfg), hidden=resolve_hidden(cfg), dropout=cfg.get("dropout", 0.0))
     return SmallCNN(widths=resolve_widths(cfg), hidden=cfg.get("hidden"), dropout=cfg.get("dropout", 0.0))

@@ -27,7 +27,7 @@ from torchvision import datasets, transforms
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from models import PRESETS, build_model, resolve_widths
+from models import ARCHS, PRESETS, STANDARD_PRESETS, build_model, resolve_hidden, resolve_widths
 
 
 def seed_all(seed: int) -> None:
@@ -161,7 +161,10 @@ def main() -> None:
     parser.add_argument("--aug-translate", type=float, default=0.05)
     parser.add_argument("--aug-interpolation", choices=list(AUG_INTERPOLATION), default="bilinear")
     # Model
-    parser.add_argument("--preset", choices=list(PRESETS), default="cnn5k", help="Size preset (see models.py)")
+    parser.add_argument("--arch", choices=ARCHS, default="small",
+                        help="small: SmallCNN (2 conv, same-size baselines); standard: VGG-style StandardCNN")
+    parser.add_argument("--preset", choices=list(PRESETS) + list(STANDARD_PRESETS), default=None,
+                        help="Size preset (see models.py); default cnn5k (small) / std85k (standard)")
     parser.add_argument("--widths", type=int, nargs=2, default=None, help="Conv widths a b; overrides --preset")
     parser.add_argument("--hidden", type=int, default=None, help="Hidden size of the head (default: b)")
     parser.add_argument("--dropout", type=float, default=0.0, help="Dropout after the hidden ReLU (0: none)")
@@ -176,8 +179,15 @@ def main() -> None:
     parser.add_argument("--out-dir", default=None, help="Default: runs/<preset or a_b>_lr<lr>_seed<seed>")
     args = parser.parse_args()
 
+    if args.preset is None:
+        args.preset = "std85k" if args.arch == "standard" else "cnn5k"
+    if (args.preset in STANDARD_PRESETS) != (args.arch == "standard"):
+        parser.error(f"--preset {args.preset} does not match --arch {args.arch}")
     widths = resolve_widths(vars(args))
+    hidden = resolve_hidden(vars(args))
     name = args.preset if args.widths is None else f"w{widths[0]}_{widths[1]}"
+    if args.arch == "standard" and args.widths is not None:
+        name = f"std_{name}"
     if args.dataset != "mnist":
         name = f"{args.dataset}_{name}"
     out_dir = Path(args.out_dir or ROOT / "runs" / f"{name}_lr{args.lr:g}_seed{args.seed}").resolve()
@@ -192,14 +202,15 @@ def main() -> None:
     print(f"Classical CNN baseline, static {DATASET_NAMES[args.dataset]} 16x16, augmentation")
     print("=" * 70)
     print(f"Device: {device}")
-    print(f"Model: SmallCNN widths={widths}, hidden={args.hidden or widths[1]}, dropout={args.dropout} ({name})")
+    print(f"Model: {type(model).__name__} widths={widths}, hidden={hidden}, dropout={args.dropout} ({name})")
     print(f"Parameter counts: Conv={param_counts['conv']}, Head={param_counts['head']}, Total={param_counts['total']}")
     print(f"LR: {args.lr:g} (ReduceLROnPlateau x{args.lr_factor}, patience {args.lr_patience}), "
           f"weight decay {args.weight_decay:g}, early stop {args.patience}")
     print(f"Augmentation: +/-{args.aug_degrees} deg, +/-{args.aug_translate} translate")
     print(f"Output directory: {out_dir}")
 
-    config = {"args": vars(args), "widths": list(widths), "param_counts": param_counts,
+    config = {"args": vars(args), "arch": args.arch, "widths": list(widths), "hidden": hidden,
+              "param_counts": param_counts,
               "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")}
     with (out_dir / "config.json").open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
@@ -252,7 +263,7 @@ def main() -> None:
     print(f"Best Val Acc:  {best_val_acc * 100:.2f}% (Epoch {best_acc_epoch})")
     print(f"Best Val Loss: {best_val_loss:.6f} (Epoch {best_loss_epoch}), val acc there (CK) {ck_acc * 100:.2f}%")
     print("=" * 70)
-    summary = {"name": name, "widths": list(widths), "lr": args.lr, "seed": args.seed,
+    summary = {"name": name, "arch": args.arch, "widths": list(widths), "hidden": hidden, "lr": args.lr, "seed": args.seed,
                "best_val_acc": best_val_acc, "best_acc_epoch": best_acc_epoch,
                "best_val_loss": best_val_loss, "best_loss_epoch": best_loss_epoch, "ck_val_acc": ck_acc,
                "total_epochs": len(history), "total_time_sec": round(sum(h["epoch_sec"] for h in history), 1),

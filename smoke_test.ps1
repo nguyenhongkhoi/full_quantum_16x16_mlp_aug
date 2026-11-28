@@ -1,6 +1,6 @@
 # Smoke test: check that the code runs end to end in a few minutes (NOT a real training run).
 # Run from the repo root:  powershell -ExecutionPolicy Bypass -File .\smoke_test.ps1
-# Uses a venv only (-Python, .\.venv or E:\Khoi\venv), never the machine's shared Python. Outputs go to .\runs\_smoke and
+# Uses a venv only (-Python, .\.venv or E:\workspaceq\venv), never the machine's shared Python. Outputs go to .\runs\_smoke and
 # .\classical_cnn\runs\_smoke (old smoke outputs are overwritten; real runs are never touched).
 # Each step: 2 epochs on 256 train + 256 validation images. Prints PASS / FAIL per step.
 param(
@@ -12,11 +12,11 @@ param(
 $ErrorActionPreference = "Continue"
 $env:PYTHONIOENCODING = "utf-8"
 $root = $PSScriptRoot
-# Python: -Python <path>, else .\.venv, else the shared venv E:\Khoi\venv
+# Python: -Python <path>, else .\.venv, else the shared venv E:\workspaceq\venv
 $py = $Python
 if (-not $py) { $py = Join-Path $root ".venv\Scripts\python.exe" }
-if (-not (Test-Path $py)) { $py = "E:\Khoi\venv\Scripts\python.exe" }
-if (-not (Test-Path $py)) { Write-Host "No venv found (.venv or E:\Khoi\venv); pass -Python <path to python.exe>"; exit 1 }
+if (-not (Test-Path $py)) { $py = "E:\workspaceq\venv\Scripts\python.exe" }
+if (-not (Test-Path $py)) { Write-Host "No venv found (.venv or E:\workspaceq\venv); pass -Python <path to python.exe>"; exit 1 }
 Write-Host "Python: $py"
 Set-Location $root
 New-Item -ItemType Directory -Force -Path .\runs\_smoke, .\logs | Out-Null

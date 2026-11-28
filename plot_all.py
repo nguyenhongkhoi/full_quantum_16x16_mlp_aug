@@ -65,7 +65,8 @@ def load_run(run_dir: Path, label: str | None = None) -> dict | None:
     params = counts.get("total_free", counts.get("total")) if counts else None
     return {"dir": run_dir, "label": label or run_dir.name, "kind": kind, "history": history,
             "dataset": args.get("dataset", "mnist"), "params": params, "lr": args.get("lr"),
-            "widths": config.get("widths"), "finished": (run_dir / "summary.json").is_file()}
+            "widths": config.get("widths"), "arch": args.get("arch", "small"),
+            "finished": (run_dir / "summary.json").is_file()}
 
 
 def stats(run: dict) -> dict:
@@ -81,7 +82,7 @@ def keep_best_lr(cnn_runs: list[dict]) -> list[dict]:
     """Với CNN cùng cỡ (cùng widths / tham số) chạy nhiều lr, chỉ giữ lr có MAX val cao nhất."""
     groups: dict = {}
     for run in cnn_runs:
-        key = (run["dataset"], tuple(run["widths"]) if run["widths"] else run["params"])
+        key = (run["dataset"], run.get("arch", "small"), tuple(run["widths"]) if run["widths"] else run["params"])
         if key not in groups or stats(run)["max_acc"] > stats(groups[key])["max_acc"]:
             groups[key] = run
     return list(groups.values())
@@ -90,6 +91,8 @@ def keep_best_lr(cnn_runs: list[dict]) -> list[dict]:
 def cnn_label(run: dict) -> str:
     w = run["widths"]
     size = f"{run['params']:,}".replace(",", ".") if run["params"] else "?"
+    if w and run.get("arch") == "standard":
+        return f"StdCNN {w[0]}-{w[1]} ({size})"
     return f"CNN {w[0]}-{w[1]} ({size})" if w else run["label"]
 
 

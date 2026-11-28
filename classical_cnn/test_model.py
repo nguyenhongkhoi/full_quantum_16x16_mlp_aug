@@ -12,7 +12,7 @@ import torch.nn.functional as F
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from models import EXPECTED, PRESETS, build_model, preprocess
+from models import EXPECTED, PRESETS, STANDARD_EXPECTED, STANDARD_PRESETS, build_model, preprocess, standard_count
 
 
 def test_counts():
@@ -27,13 +27,19 @@ def test_counts():
     counts = build_model({"preset": "cnn5k", "hidden": 32}).count_parameters()
     assert counts["total"] == 1296 + 256 * 32 + 32 + 32 * 10 + 10, counts
     print("    [PASS] cnn1k 934 ... cnn5k 5,578, cnn17k 17,170, cnn19k 19,060, cnn85k 85,258")
+    for name, (a, b, h) in STANDARD_PRESETS.items():
+        counts = build_model({"arch": "standard", "preset": name}).count_parameters()
+        print(f"    {name:7s} standard ({a}, {b}, h {h}): {counts}")
+        assert counts["total"] == STANDARD_EXPECTED[name] == standard_count(a, b, h), (name, counts)
+    print("    [PASS] std85k 84,754")
 
 
 def test_forward_backward():
     print("[-] Forward and backward")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    for name in ("cnn1k", "cnn17k", "cnn85k"):
-        model = build_model({"preset": name}).to(device).train()
+    for name in ("cnn1k", "cnn17k", "cnn85k", "std85k"):
+        arch = "standard" if name in STANDARD_PRESETS else "small"
+        model = build_model({"arch": arch, "preset": name}).to(device).train()
         images = torch.rand(4, 1, 28, 28, device=device)
         logits = model(images)
         assert logits.shape == (4, 10), logits.shape

@@ -52,6 +52,11 @@ python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --
 # G2 = G1 + --share-final (3 cây dùng chung khối 8 qubit cuối): FREE 7.549; chưa chạy
 python .\train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --share-gates --share-final --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\mnist_G2_sharegates_sharefinal | Tee-Object -FilePath .\logs\mnist_G2_sharegates_sharefinal.txt
 
+# M1 = router quantum + head linear (Linear(372,10) mỗi cây, đủ 252 tương quan cặp): FREE 14.429 (bỏ pha 14.175);
+# MNIST MAX val 99,03 (ngang S1). Bản quantum mạnh ngang S1 -> chạy thêm trên Fashion (CNN cùng cỡ: --widths 17 25).
+# Log phải in dòng FREE parameters ... Total=14429.
+python .\train.py --dataset fashion --front qconv4x3 --orders row column morton --side-level 32 --expert-head linear --dropout 0 --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --seed 0 --split-seed 20260911 --device cuda --data-root .\mnist_data --out-dir .\runs\fashion_M1_linear | Tee-Object -FilePath .\logs\fashion_M1_linear.txt
+
 # Các tùy chọn khác của train.py (xem python .\train.py --help):
 #   --expert-head samebasis | linear (M1, 14.429) | nocorr (N1, 6.869) | zz | shared | mlp | bloch8 | obs10 | fusion
 #   --router quantum | none | linear | mlp ; --router-source encoder | pixels ; --router-detach
@@ -89,6 +94,15 @@ powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset mnist
 powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset fashion
 # Chỉ vài cỡ / một lr:
 powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset mnist -Widths "14 20","13 18" -Lrs "1e-3"
+
+# CNN CHUẨN ~85k (mốc tham khảo, không cùng cỡ): --arch standard --preset std85k = StandardCNN kiểu VGG,
+# Conv(1->32) BN ReLU, Conv(32->32) BN ReLU, Pool, Conv(32->70) BN ReLU, Conv(70->70) BN ReLU, Pool,
+# global average pool, Linear(70,128) ReLU, Linear(128,10): 84.754 tham số. Log phải in Total=84754.
+# Fashion, 3 lr (CNN nhỏ, chạy song song được):
+python .\run_cnn.py --arch standard --preset std85k --dataset fashion --lr 3e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root ..\mnist_data --out-dir .\runs\fashion_std85k_lr3e-3_seed0 | Tee-Object -FilePath .\logs\log_fashion_std85k_lr3e-3_seed0.txt
+python .\run_cnn.py --arch standard --preset std85k --dataset fashion --lr 1e-3 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root ..\mnist_data --out-dir .\runs\fashion_std85k_lr1e-3_seed0 | Tee-Object -FilePath .\logs\log_fashion_std85k_lr1e-3_seed0.txt
+python .\run_cnn.py --arch standard --preset std85k --dataset fashion --lr 3e-4 --seed 0 --dropout 0 --weight-decay 0 --aug-degrees 5 --aug-translate 0.05 --aug-interpolation bilinear --batch-size 64 --epochs 50 --patience 10 --lr-factor 0.5 --lr-patience 3 --min-lr 1e-6 --split-seed 20260911 --device cuda --data-root ..\mnist_data --out-dir .\runs\fashion_std85k_lr3e-4_seed0 | Tee-Object -FilePath .\logs\log_fashion_std85k_lr3e-4_seed0.txt
+# CNN cùng cỡ M1 trên Fashion (3 lr): powershell -ExecutionPolicy Bypass -File .\run_sweep.ps1 -Dataset fashion -Widths "17 25"
 
 # Bảng kết quả (MAX val từng run + lr tốt nhất mỗi cỡ) -> ket_qua_cnn.csv:
 python .\tong_hop.py
