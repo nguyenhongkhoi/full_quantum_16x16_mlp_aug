@@ -1,0 +1,94 @@
+===== 2026-11-25 20:48:39 train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --split-seed 20260911 --device cuda --data-root .\mnist_data --num-workers 0 --dropout 0 --seed 2 --out-dir .\runs\mnist_S1_samebasis_seed2
+======================================================================
+QCNN level32 + quanvolution encoder + mixture-of-experts router, static MNIST 16x16 with augmentation
+======================================================================
+Device: cuda | Front end: qconv4x3 (readout linear) | Trees (experts): ['row', 'column', 'morton'] | side_level=32
+Expert head: samebasis
+Router: quantum | source=encoder detach=False grid=[4, 4] qubits=8 layers/upload=1 ansatz=se init=0.01
+Mix: logits | gate noise 0.0 | balance weight 0.01 | entropy weight 0.0 | router lr 0.001
+Augmentation: +/-5.0 deg, +/-0.05 translate, bilinear
+Output directory: D:\tensornetwork_mnist\qcnn_s1\runs\mnist_S1_samebasis_seed2
+----------------------------------------------------------------------
+Parameter counts: Trees=4824, Front=492 (circuit angles 324), Router=643 (circuit 640), Head=6150, Total=12109, Quantum share=47.8%
+FREE parameters (learned unitaries counted by real degrees of freedom, 16 / 4): Trees=2424, Router circuit=320, Total=9389, Quantum share=32.7% | without global phase (15 / 3): Total=9135, Quantum share=30.8%
+----------------------------------------------------------------------
+Loaded: 50,000 train images, 10,000 val images (batch size 64)
+
+One line per epoch. soft = trained output; top1 = only the tree with the largest gate; uni = uniform mean; orc = some tree right; g = mean gate per tree; H = gate entropy / log E.
+*best val acc -> model_best_val_acc.pt (MAX); *best val loss -> model_best_val_loss.pt (CK)
+--------------------------------------------------------------------------------------------------------------
+===== 2026-11-27 10:11:07 train.py --dataset mnist --front qconv4x3 --orders row column morton --side-level 32 --expert-head samebasis --router quantum --router-source encoder --router-grid 4 4 --router-qubits 8 --router-layers 1 --router-ansatz se --router-init-scale 0.01 --mix logits --gate-noise 0 --balance-weight 0.01 --entropy-weight 0 --aug-degrees 5 --aug-translate 0.05 --batch-size 64 --epochs 50 --lr 1e-3 --patience 10 --split-seed 20260911 --device cuda --data-root .\mnist_data --num-workers 0 --dropout 0 --seed 2 --out-dir .\runs\mnist_S1_samebasis_seed2
+======================================================================
+QCNN level32 + quanvolution encoder + mixture-of-experts router, static MNIST 16x16 with augmentation
+======================================================================
+Device: cuda | Front end: qconv4x3 (readout linear) | Trees (experts): ['row', 'column', 'morton'] | side_level=32
+Expert head: samebasis
+Router: quantum | source=encoder detach=False grid=[4, 4] qubits=8 layers/upload=1 ansatz=se init=0.01
+Mix: logits | gate noise 0.0 | balance weight 0.01 | entropy weight 0.0 | router lr 0.001
+Augmentation: +/-5.0 deg, +/-0.05 translate, bilinear
+Output directory: D:\tensornetwork_mnist\qcnn_s1\runs\mnist_S1_samebasis_seed2
+----------------------------------------------------------------------
+Parameter counts: Trees=4824, Front=492 (circuit angles 324), Router=643 (circuit 640), Head=6150, Total=12109, Quantum share=47.8%
+FREE parameters (learned unitaries counted by real degrees of freedom, 16 / 4): Trees=2424, Router circuit=320, Total=9389, Quantum share=32.7% | without global phase (15 / 3): Total=9135, Quantum share=30.8%
+----------------------------------------------------------------------
+Loaded: 50,000 train images, 10,000 val images (batch size 64)
+
+One line per epoch. soft = trained output; top1 = only the tree with the largest gate; uni = uniform mean; orc = some tree right; g = mean gate per tree; H = gate entropy / log E.
+*best val acc -> model_best_val_acc.pt (MAX); *best val loss -> model_best_val_loss.pt (CK)
+--------------------------------------------------------------------------------------------------------------
+Ep   1 | train ce 0.7161 aux 0.0003 acc 81.66 | val loss 0.200732 soft 94.95 top1 89.11 uni 94.84 orc 97.62 trees 81.69 56.80 70.41 | g 0.36 0.25 0.40 H 0.96 | lr 1.00e-03 | 1256s  *best val acc  *best val loss
+Ep   2 | train ce 0.2009 aux 0.0004 acc 94.52 | val loss 0.126196 soft 96.60 top1 89.99 uni 96.08 orc 97.42 trees 68.04 56.38 66.60 | g 0.35 0.24 0.41 H 0.93 | lr 1.00e-03 | 1257s  *best val acc  *best val loss
+Ep   3 | train ce 0.1545 aux 0.0003 acc 95.43 | val loss 0.122394 soft 96.52 top1 89.46 uni 95.61 orc 97.75 trees 71.81 58.59 60.99 | g 0.38 0.28 0.34 H 0.94 | lr 1.00e-03 | 1259s  *best val loss
+Ep   4 | train ce 0.1311 aux 0.0002 acc 96.13 | val loss 0.100301 soft 97.05 top1 89.26 uni 96.80 orc 98.06 trees 71.02 56.83 62.00 | g 0.35 0.26 0.39 H 0.93 | lr 1.00e-03 | 1258s  *best val acc  *best val loss
+Ep   5 | train ce 0.1159 aux 0.0002 acc 96.54 | val loss 0.092213 soft 97.04 top1 89.45 uni 96.54 orc 98.11 trees 69.62 59.28 65.71 | g 0.43 0.27 0.30 H 0.94 | lr 1.00e-03 | 1259s  *best val loss
+Ep   6 | train ce 0.1075 aux 0.0002 acc 96.79 | val loss 0.077040 soft 97.78 top1 90.24 uni 97.24 orc 98.42 trees 70.49 61.50 64.34 | g 0.39 0.29 0.32 H 0.94 | lr 1.00e-03 | 1254s  *best val acc  *best val loss
+Ep   7 | train ce 0.0991 aux 0.0002 acc 97.04 | val loss 0.074586 soft 97.64 top1 90.05 uni 97.02 orc 98.59 trees 70.89 64.32 60.54 | g 0.38 0.29 0.33 H 0.94 | lr 1.00e-03 | 1261s  *best val loss
+Ep   8 | train ce 0.0931 aux 0.0002 acc 97.17 | val loss 0.074414 soft 97.76 top1 88.52 uni 96.81 orc 98.60 trees 72.68 62.58 64.90 | g 0.36 0.32 0.32 H 0.95 | lr 1.00e-03 | 1261s  *best val loss
+Ep   9 | train ce 0.0899 aux 0.0002 acc 97.41 | val loss 0.064916 soft 97.97 top1 90.09 uni 97.38 orc 98.77 trees 71.61 63.27 63.56 | g 0.39 0.30 0.31 H 0.94 | lr 1.00e-03 | 1260s  *best val acc  *best val loss
+Ep  10 | train ce 0.0837 aux 0.0002 acc 97.51 | val loss 0.069512 soft 97.76 top1 89.92 uni 97.39 orc 98.75 trees 77.56 57.59 61.29 | g 0.37 0.29 0.34 H 0.94 | lr 1.00e-03 | 1257s
+Ep  11 | train ce 0.0824 aux 0.0002 acc 97.47 | val loss 0.061296 soft 98.17 top1 89.69 uni 97.79 orc 98.70 trees 71.65 61.62 65.56 | g 0.41 0.30 0.30 H 0.94 | lr 1.00e-03 | 1259s  *best val acc  *best val loss
+Ep  12 | train ce 0.0792 aux 0.0002 acc 97.59 | val loss 0.063312 soft 98.06 top1 89.04 uni 97.49 orc 98.60 trees 74.52 61.42 63.42 | g 0.40 0.32 0.29 H 0.95 | lr 1.00e-03 | 1253s
+Ep  13 | train ce 0.0760 aux 0.0001 acc 97.68 | val loss 0.060685 soft 98.04 top1 89.87 uni 97.66 orc 98.87 trees 75.08 59.83 65.63 | g 0.39 0.31 0.30 H 0.95 | lr 1.00e-03 | 1255s  *best val loss
+Ep  14 | train ce 0.0742 aux 0.0001 acc 97.72 | val loss 0.057460 soft 98.32 top1 86.92 uni 97.59 orc 98.72 trees 67.48 61.16 60.94 | g 0.38 0.32 0.30 H 0.95 | lr 1.00e-03 | 1258s  *best val acc  *best val loss
+Ep  15 | train ce 0.0724 aux 0.0001 acc 97.78 | val loss 0.055336 soft 98.37 top1 88.75 uni 97.98 orc 98.59 trees 73.63 60.11 61.81 | g 0.36 0.29 0.35 H 0.95 | lr 1.00e-03 | 1268s  *best val acc  *best val loss
+Ep  16 | train ce 0.0719 aux 0.0001 acc 97.80 | val loss 0.056657 soft 98.26 top1 89.40 uni 97.98 orc 98.72 trees 75.54 56.79 65.04 | g 0.35 0.31 0.34 H 0.95 | lr 1.00e-03 | 1257s
+Ep  17 | train ce 0.0663 aux 0.0001 acc 97.98 | val loss 0.050065 soft 98.48 top1 87.30 uni 98.24 orc 98.65 trees 69.49 56.89 63.70 | g 0.36 0.31 0.32 H 0.95 | lr 1.00e-03 | 1261s  *best val acc  *best val loss
+Ep  18 | train ce 0.0662 aux 0.0001 acc 97.95 | val loss 0.054561 soft 98.29 top1 88.99 uni 97.87 orc 98.79 trees 72.61 60.40 68.79 | g 0.36 0.32 0.32 H 0.95 | lr 1.00e-03 | 1257s
+Ep  19 | train ce 0.0654 aux 0.0001 acc 97.99 | val loss 0.052448 soft 98.37 top1 87.90 uni 97.87 orc 98.84 trees 72.04 58.19 63.08 | g 0.36 0.33 0.31 H 0.95 | lr 1.00e-03 | 1258s
+Ep  20 | train ce 0.0655 aux 0.0001 acc 97.97 | val loss 0.056529 soft 98.20 top1 85.45 uni 97.89 orc 98.64 trees 69.00 56.38 67.05 | g 0.41 0.31 0.28 H 0.95 | lr 1.00e-03 | 1256s
+Ep  21 | train ce 0.0638 aux 0.0001 acc 98.03 | val loss 0.047775 soft 98.57 top1 87.97 uni 98.11 orc 98.74 trees 70.74 56.65 65.19 | g 0.37 0.30 0.33 H 0.95 | lr 1.00e-03 | 1260s  *best val acc  *best val loss
+Ep  22 | train ce 0.0625 aux 0.0001 acc 98.05 | val loss 0.045810 soft 98.62 top1 90.44 uni 98.01 orc 99.05 trees 76.59 61.11 65.65 | g 0.37 0.31 0.32 H 0.95 | lr 1.00e-03 | 1260s  *best val acc  *best val loss
+Ep  23 | train ce 0.0604 aux 0.0001 acc 98.13 | val loss 0.050234 soft 98.46 top1 87.85 uni 97.69 orc 98.68 trees 66.28 54.54 67.85 | g 0.37 0.32 0.31 H 0.95 | lr 1.00e-03 | 1259s
+Ep  24 | train ce 0.0579 aux 0.0001 acc 98.23 | val loss 0.043633 soft 98.60 top1 88.97 uni 98.24 orc 98.88 trees 72.69 56.50 63.18 | g 0.37 0.31 0.33 H 0.95 | lr 1.00e-03 | 1258s  *best val loss
+Ep  25 | train ce 0.0601 aux 0.0001 acc 98.12 | val loss 0.058742 soft 98.30 top1 84.69 uni 97.88 orc 98.70 trees 68.32 54.54 67.94 | g 0.38 0.33 0.29 H 0.95 | lr 1.00e-03 | 1259s
+Ep  26 | train ce 0.0599 aux 0.0001 acc 98.14 | val loss 0.049275 soft 98.45 top1 88.70 uni 97.95 orc 98.94 trees 76.52 54.52 63.83 | g 0.35 0.30 0.35 H 0.94 | lr 1.00e-03 | 1257s
+Ep  27 | train ce 0.0593 aux 0.0001 acc 98.15 | val loss 0.047406 soft 98.61 top1 89.39 uni 98.12 orc 98.84 trees 67.43 62.14 66.95 | g 0.35 0.32 0.33 H 0.95 | lr 1.00e-03 | 1262s
+Ep  28 | train ce 0.0573 aux 0.0001 acc 98.20 | val loss 0.045989 soft 98.58 top1 86.17 uni 98.20 orc 98.71 trees 68.19 53.02 61.94 | g 0.34 0.30 0.35 H 0.95 | lr 1.00e-03 | 1259s
+Ep  29 | train ce 0.0503 aux 0.0001 acc 98.47 | val loss 0.043964 soft 98.62 top1 86.89 uni 98.34 orc 98.89 trees 68.74 56.91 63.85 | g 0.37 0.31 0.32 H 0.95 | lr 5.00e-04 | 1260s
+Ep  30 | train ce 0.0504 aux 0.0001 acc 98.49 | val loss 0.040980 soft 98.77 top1 88.51 uni 98.37 orc 98.92 trees 70.36 56.83 63.96 | g 0.37 0.31 0.32 H 0.95 | lr 5.00e-04 | 1258s  *best val acc  *best val loss
+Ep  31 | train ce 0.0481 aux 0.0001 acc 98.53 | val loss 0.040684 soft 98.67 top1 87.40 uni 98.37 orc 98.94 trees 70.23 54.29 65.43 | g 0.38 0.32 0.30 H 0.95 | lr 5.00e-04 | 1260s  *best val loss
+Ep  32 | train ce 0.0491 aux 0.0001 acc 98.51 | val loss 0.043474 soft 98.70 top1 88.03 uni 98.06 orc 98.94 trees 68.32 51.53 66.45 | g 0.37 0.31 0.32 H 0.95 | lr 5.00e-04 | 1258s
+Ep  33 | train ce 0.0482 aux 0.0001 acc 98.55 | val loss 0.045229 soft 98.67 top1 88.23 uni 98.34 orc 98.66 trees 72.54 50.18 64.89 | g 0.38 0.31 0.31 H 0.95 | lr 5.00e-04 | 1268s
+Ep  34 | train ce 0.0481 aux 0.0001 acc 98.57 | val loss 0.039345 soft 98.75 top1 88.15 uni 98.47 orc 98.98 trees 70.87 53.22 65.07 | g 0.36 0.31 0.33 H 0.95 | lr 5.00e-04 | 1256s  *best val loss
+Ep  35 | train ce 0.0481 aux 0.0001 acc 98.52 | val loss 0.039930 soft 98.78 top1 87.73 uni 98.36 orc 99.07 trees 71.77 53.85 66.75 | g 0.37 0.32 0.31 H 0.95 | lr 5.00e-04 | 1259s  *best val acc
+Ep  36 | train ce 0.0474 aux 0.0001 acc 98.61 | val loss 0.040777 soft 98.74 top1 86.77 uni 98.40 orc 98.96 trees 68.38 54.84 65.61 | g 0.38 0.33 0.30 H 0.95 | lr 5.00e-04 | 1259s
+Ep  37 | train ce 0.0482 aux 0.0001 acc 98.49 | val loss 0.045860 soft 98.52 top1 87.04 uni 98.06 orc 98.85 trees 71.33 53.40 62.37 | g 0.36 0.31 0.33 H 0.95 | lr 5.00e-04 | 1259s
+Ep  38 | train ce 0.0463 aux 0.0001 acc 98.56 | val loss 0.038723 soft 98.79 top1 86.77 uni 98.44 orc 98.96 trees 66.86 56.28 63.80 | g 0.38 0.30 0.32 H 0.95 | lr 5.00e-04 | 1260s  *best val acc  *best val loss
+Ep  39 | train ce 0.0470 aux 0.0001 acc 98.58 | val loss 0.043344 soft 98.67 top1 87.18 uni 98.22 orc 98.88 trees 65.26 52.43 64.27 | g 0.36 0.32 0.32 H 0.95 | lr 5.00e-04 | 1260s
+Ep  40 | train ce 0.0466 aux 0.0001 acc 98.56 | val loss 0.041099 soft 98.71 top1 85.99 uni 98.37 orc 98.73 trees 66.12 51.83 61.89 | g 0.36 0.33 0.31 H 0.95 | lr 5.00e-04 | 1260s
+Ep  41 | train ce 0.0481 aux 0.0001 acc 98.57 | val loss 0.040298 soft 98.69 top1 87.27 uni 98.24 orc 98.87 trees 68.06 50.42 61.28 | g 0.35 0.32 0.33 H 0.95 | lr 5.00e-04 | 1262s
+Ep  42 | train ce 0.0458 aux 0.0001 acc 98.64 | val loss 0.041048 soft 98.71 top1 85.94 uni 98.44 orc 98.99 trees 67.28 54.44 65.33 | g 0.38 0.32 0.30 H 0.95 | lr 5.00e-04 | 1260s
+Ep  43 | train ce 0.0420 aux 0.0001 acc 98.70 | val loss 0.038317 soft 98.72 top1 88.11 uni 98.31 orc 99.03 trees 69.39 51.26 64.62 | g 0.37 0.31 0.32 H 0.95 | lr 2.50e-04 | 1261s  *best val loss
+Ep  44 | train ce 0.0424 aux 0.0001 acc 98.68 | val loss 0.039125 soft 98.84 top1 86.29 uni 98.40 orc 99.00 trees 65.24 51.48 62.64 | g 0.35 0.32 0.32 H 0.95 | lr 2.50e-04 | 1258s  *best val acc
+Ep  45 | train ce 0.0418 aux 0.0001 acc 98.74 | val loss 0.038656 soft 98.76 top1 86.82 uni 98.55 orc 98.89 trees 68.42 51.61 61.74 | g 0.36 0.30 0.34 H 0.95 | lr 2.50e-04 | 1263s
+Ep  46 | train ce 0.0438 aux 0.0001 acc 98.61 | val loss 0.039242 soft 98.73 top1 86.74 uni 98.45 orc 98.84 trees 66.43 49.82 62.03 | g 0.34 0.31 0.34 H 0.95 | lr 2.50e-04 | 1259s
+Ep  47 | train ce 0.0415 aux 0.0001 acc 98.68 | val loss 0.037747 soft 98.87 top1 87.18 uni 98.52 orc 98.90 trees 66.16 51.62 62.87 | g 0.35 0.32 0.33 H 0.95 | lr 2.50e-04 | 1260s  *best val acc  *best val loss
+Ep  48 | train ce 0.0419 aux 0.0001 acc 98.73 | val loss 0.038581 soft 98.78 top1 86.60 uni 98.40 orc 98.95 trees 67.99 51.91 61.36 | g 0.37 0.31 0.33 H 0.95 | lr 2.50e-04 | 1260s
+Ep  49 | train ce 0.0418 aux 0.0001 acc 98.73 | val loss 0.037550 soft 98.86 top1 87.33 uni 98.61 orc 98.98 trees 67.37 51.62 63.31 | g 0.35 0.32 0.33 H 0.95 | lr 2.50e-04 | 1261s  *best val loss
+Ep  50 | train ce 0.0411 aux 0.0001 acc 98.74 | val loss 0.036610 soft 98.80 top1 87.94 uni 98.43 orc 99.11 trees 67.34 52.28 63.96 | g 0.35 0.32 0.33 H 0.95 | lr 2.50e-04 | 1258s  *best val loss
+===========================================================================
+Training Completed!
+Best Val Acc (soft):  98.87% (Epoch 47); top1 there 87.18% -> model_best_val_acc.pt
+Best Val Loss: 0.036610 (Epoch 50), val acc there (CK) 98.80%, top1 87.94% -> model_best_val_loss.pt
+Max val acc top1 over epochs: 90.44% (reference only)
+===========================================================================

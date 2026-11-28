@@ -1,0 +1,29 @@
+{
+  "best_val_acc": 0.9886999726295471,
+  "best_acc_epoch": 47,
+  "best_val_loss": 0.036609623581171036,
+  "best_loss_epoch": 50,
+  "ck_val_acc": 0.988,
+  "top1_at_best_acc": 0.8718,
+  "top1_at_best_loss": 0.8794,
+  "total_epochs": 50,
+  "total_time_sec": 62958.94999999998,
+  "param_counts": {
+    "quantum": 4824,
+    "front": 492,
+    "front_quantum": 324,
+    "head": 6150,
+    "router": 643,
+    "router_quantum": 640,
+    "total": 12109,
+    "quantum_share": 0.4779915765133372,
+    "quantum_free": 2424,
+    "router_quantum_free": 320,
+    "total_free": 9389,
+    "quantum_share_free": 0.32676536372350623,
+    "quantum_free_nophase": 2202,
+    "router_quantum_free_nophase": 288,
+    "total_free_nophase": 9135,
+    "quantum_share_free_nophase": 0.3080459770114943
+  }
+}

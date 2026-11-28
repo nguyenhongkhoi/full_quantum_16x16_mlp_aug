@@ -1,0 +1,4 @@
+run,kind,params,max_val_acc,max_epoch,ck_val_acc,min_val_loss,ck_epoch,epochs,finished,dir
+CNN 14-20 (9.378),cnn,9378,90.87,34,90.56,0.252196,29,39,True,C:\Users\nguye\AppData\Local\Temp\claude\121e035392c7cecc\7720443a-f038-42fc-b8a9-a133752a9f40\scratchpad\r4090\classical_cnn\runs\fashion_w14_20_lr3e-3_seed0
+CNN 10-21 (9.370),cnn,9370,90.41,48,90.37,0.258729,49,50,True,C:\Users\nguye\AppData\Local\Temp\claude\121e035392c7cecc\7720443a-f038-42fc-b8a9-a133752a9f40\scratchpad\r4090\classical_cnn\runs\fashion_w10_21_lr3e-3_seed0
+S1 Fashion,qcnn,9389,90.00,44,90.00,0.276403,44,50,True,C:\Users\nguye\AppData\Local\Temp\claude\121e035392c7cecc\7720443a-f038-42fc-b8a9-a133752a9f40\scratchpad\r4090\runs\fashion_S1_samebasis
